@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-primary: #B38B4D; /* Elegant Brassed Gold */
+  --color-brand-secondary: #064E3B; /* Deep Forest Emerald */
+  --color-bg-main: #FDFDFB; /* Premium Paper Tone */
+  --color-card-bg: rgba(255, 255, 255, 0.98);
+}
+
+@layer base {
+  body {
+    @apply bg-bg-main text-slate-900 antialiased;
+  }
+}
+
+@layer utilities {
+  .text-glow-gold {
+    text-shadow: 0 0 12px rgba(179, 139, 77, 0.1);
+  }
+  .bg-glass {
+    @apply bg-card-bg backdrop-blur-xl border border-slate-200/40 shadow-sm transition-all duration-300;
+  }
+  .font-numeric {
+    @apply font-mono tracking-tight;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
