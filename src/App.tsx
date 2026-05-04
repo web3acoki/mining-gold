@@ -75,10 +75,32 @@ const translations: Record<string, any> = {
     strategyDesc: "Matchup rewards settled daily based on node cap. Genesis partners have priority spillover positioning for maximum efficiency.",
     assetHub: "ASSET HUB",
     withdrawableBalance: "Withdrawable Balance (EQUIVALENT)",
+    nodeSynced: "Node synced",
+    withdrawableUsdt: "Withdrawable USDT",
+    withdrawableXgt: "Withdrawable $XGT",
+    lockedXgt: "Locked $XGT",
     usdtWallet: "USDT Wallet",
     stakedAsset: "$XGT (Staked)",
-    stabilityLoop: "70/30 Stability Loop",
-    stabilityDesc: "70% of rewards credited as USDT. 30% converted to Ecosystem Trading Credits. Credits unlock after locking $XGT for 30 days.",
+    withdrawFeeNote: "5% processing fee applies",
+    withdrawalHistory: "Withdrawal history",
+    withdrawalTabUsdt: "USDT",
+    withdrawalTabXgt: "$XGT",
+    withdrawalListEmpty: "No withdrawals in this tab.",
+    withdrawalStatus_completed: "Completed",
+    withdrawalStatus_pending: "Pending",
+    withdrawalFeeLabel: "Fee",
+    withdrawCtaUsdt: "Withdraw USDT",
+    withdrawCtaXgt: "Withdraw $XGT",
+    withdrawAmountLabel: "Amount",
+    withdrawAmountPlaceholder: "Enter amount",
+    withdrawAvailable: "Available",
+    withdrawMax: "Max",
+    withdrawConfirm: "Confirm withdrawal",
+    withdrawFeePreview: "Fee (5%)",
+    withdrawNetReceive: "You receive (est.)",
+    withdrawExceedsBalance: "Exceeds available balance",
+    withdrawInvalidAmount: "Enter a valid amount",
+    withdrawSubmitted: "Withdrawal submitted",
     withdraw: "Withdraw",
     swap: "Swap $XGT",
     recentLedger: "Recent Ledger",
@@ -219,10 +241,32 @@ const translations: Record<string, any> = {
     strategyDesc: "对碰奖励根据节点上限每日结算。创始合伙人享有优先滑落排位，以实现效率最大化。",
     assetHub: "资产中心",
     withdrawableBalance: "可提现余额 (等值)",
+    nodeSynced: "节点已同步",
+    withdrawableUsdt: "可提现 USDT",
+    withdrawableXgt: "可提现 $XGT",
+    lockedXgt: "锁仓中 $XGT",
     usdtWallet: "USDT 钱包",
     stakedAsset: "$XGT (质押中)",
-    stabilityLoop: "70/30 稳定循环",
-    stabilityDesc: "70% 收益以 USDT 结算。30% 转换为生态交易积分。积分需 $XGT 锁仓 30 天方可提现。",
+    withdrawFeeNote: "收取 5% 的手续费",
+    withdrawalHistory: "提现记录",
+    withdrawalTabUsdt: "USDT",
+    withdrawalTabXgt: "$XGT",
+    withdrawalListEmpty: "该分类下暂无提现记录。",
+    withdrawalStatus_completed: "已完成",
+    withdrawalStatus_pending: "处理中",
+    withdrawalFeeLabel: "手续费",
+    withdrawCtaUsdt: "提现 USDT",
+    withdrawCtaXgt: "提现 $XGT",
+    withdrawAmountLabel: "提现数量",
+    withdrawAmountPlaceholder: "请输入数量",
+    withdrawAvailable: "可提",
+    withdrawMax: "全部",
+    withdrawConfirm: "确认提现",
+    withdrawFeePreview: "手续费（5%）",
+    withdrawNetReceive: "预计到账",
+    withdrawExceedsBalance: "超过可提余额",
+    withdrawInvalidAmount: "请输入有效数量",
+    withdrawSubmitted: "提现已提交",
     withdraw: "提现",
     swap: "兑换 $XGT",
     recentLedger: "最近账目",
@@ -611,7 +655,10 @@ interface UserState {
   uid: string;
   refCode: string;
   balanceUSDT: number;
-  balanceXGT: number;
+  /** Withdrawable $XGT balance */
+  xgtWithdrawable: number;
+  /** $XGT in lock / stake, not yet withdrawable */
+  xgtLocked: number;
   power: number;
   totalEarned: number;
   healthLimit: number; // 300%
@@ -658,6 +705,28 @@ interface RewardEntry {
   /** $XGT lock release quantity */
   amountXgt?: number;
 }
+
+type WithdrawalAsset = 'usdt' | 'xgt';
+
+interface WithdrawalEntry {
+  id: string;
+  asset: WithdrawalAsset;
+  amount: number;
+  fee?: number;
+  status: 'completed' | 'pending';
+  createdAt: string;
+  remark?: string;
+}
+
+/** Demo withdrawals — swap for GET /wallet/withdrawals */
+const MOCK_WITHDRAWALS: WithdrawalEntry[] = [
+  { id: 'wd-u1', asset: 'usdt', amount: 500, fee: 25, status: 'completed', createdAt: '2026-05-04T10:22:00.000Z' },
+  { id: 'wd-u2', asset: 'usdt', amount: 120, fee: 6, status: 'pending', createdAt: '2026-05-06T08:15:00.000Z' },
+  { id: 'wd-u3', asset: 'usdt', amount: 88.5, fee: 4.43, status: 'completed', createdAt: '2026-05-01T14:00:00.000Z' },
+  { id: 'wd-x1', asset: 'xgt', amount: 200, fee: 10, status: 'completed', createdAt: '2026-05-05T16:40:00.000Z' },
+  { id: 'wd-x2', asset: 'xgt', amount: 50, status: 'pending', createdAt: '2026-05-06T12:00:00.000Z', remark: 'On-chain' },
+  { id: 'wd-x3', asset: 'xgt', amount: 320, fee: 16, status: 'completed', createdAt: '2026-04-28T09:30:00.000Z' },
+];
 
 /** Demo miners — swap for GET /nodes/my */
 const MOCK_MY_MINERS: MyMiner[] = [
@@ -825,7 +894,11 @@ export default function App() {
   const [user, setUser] = useState<UserState | null>(null);
   const [lang, setLang] = useState<'en' | 'zh'>('en');
   const [mineSubView, setMineSubView] = useState<'myMiners' | 'shop'>('myMiners');
-  const [walletView, setWalletView] = useState<'overview' | 'rewards'>('overview');
+  const [walletView, setWalletView] = useState<'overview' | 'rewards' | 'withdrawals' | 'withdrawForm'>('overview');
+  const [withdrawalAssetTab, setWithdrawalAssetTab] = useState<WithdrawalAsset>('usdt');
+  const [withdrawFormAsset, setWithdrawFormAsset] = useState<WithdrawalAsset>('usdt');
+  const [withdrawAmountStr, setWithdrawAmountStr] = useState('');
+  const [withdrawalList, setWithdrawalList] = useState<WithdrawalEntry[]>(() => [...MOCK_WITHDRAWALS]);
   const [rewardFilter, setRewardFilter] = useState<RewardType | 'all'>('all');
   const [rewardMinerFilter, setRewardMinerFilter] = useState<string | null>(null);
 
@@ -865,7 +938,8 @@ export default function App() {
       uid: params.get('uid') || 'UX_88291',
       refCode: params.get('ref') || 'XGT_GOLD',
       balanceUSDT: 1240.50,
-      balanceXGT: 450.20,
+      xgtWithdrawable: 120.2,
+      xgtLocked: 330.0,
       power: 20000,
       totalEarned: 12580,
       healthLimit: 60000,
@@ -1697,6 +1771,256 @@ export default function App() {
     );
   };
 
+  const renderWithdrawalHistory = () => {
+    const rows = withdrawalList.filter((w) => w.asset === withdrawalAssetTab).sort(
+      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+    );
+
+    const statusLabel = (s: WithdrawalEntry['status']) =>
+      s === 'completed' ? t('withdrawalStatus_completed') : t('withdrawalStatus_pending');
+
+    const amountPrimary = (w: WithdrawalEntry) => {
+      if (w.asset === 'usdt')
+        return (
+          <span className="text-emerald-800">
+            −{w.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
+            <span className="text-[10px] font-sans text-slate-500">USDT</span>
+          </span>
+        );
+      return (
+        <span className="text-orange-900">
+          −{w.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}{' '}
+          <span className="text-[10px] font-sans text-slate-500">XGT</span>
+        </span>
+      );
+    };
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-24">
+        <div className="flex items-center justify-between pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setWalletView('overview');
+              setWithdrawalAssetTab('usdt');
+            }}
+            className="flex items-center gap-2 text-[11px] font-bold uppercase text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            <ArrowLeft size={18} />
+            {t('backToAssets')}
+          </button>
+          <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.3em]">{t('withdrawalHistory')}</span>
+        </div>
+
+        <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80">
+          {(['usdt', 'xgt'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setWithdrawalAssetTab(tab)}
+              className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${
+                withdrawalAssetTab === tab
+                  ? 'bg-white text-slate-900 shadow-md border border-slate-200'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab === 'usdt' ? t('withdrawalTabUsdt') : t('withdrawalTabXgt')}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          {rows.length === 0 ? (
+            <Card className="p-8 text-center text-slate-500 text-sm border-dashed border-slate-200">{t('withdrawalListEmpty')}</Card>
+          ) : (
+            rows.map((w) => (
+              <Card key={w.id} className="p-4 flex items-start justify-between gap-4 border-slate-100 bg-white shadow-sm">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 shrink-0">
+                    <History size={18} className={w.asset === 'usdt' ? 'text-emerald-700' : 'text-orange-800'} aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-lg font-serif font-bold tracking-tight">{amountPrimary(w)}</p>
+                    <p className="text-[9px] text-slate-400 font-medium uppercase mt-1">
+                      {new Date(w.createdAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                    {w.fee != null && w.fee > 0 ? (
+                      <p className="text-[9px] text-slate-500 mt-1">
+                        {t('withdrawalFeeLabel')}: {w.fee.toLocaleString(undefined, { maximumFractionDigits: 4 })}{' '}
+                        {w.asset === 'usdt' ? 'USDT' : 'XGT'}
+                      </p>
+                    ) : null}
+                    {w.remark ? <p className="text-[9px] text-slate-400 mt-1">{w.remark}</p> : null}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p
+                    className={`text-[9px] font-black uppercase tracking-wider ${
+                      w.status === 'completed' ? 'text-emerald-700' : 'text-amber-700'
+                    }`}
+                  >
+                    {statusLabel(w.status)}
+                  </p>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderWithdrawForm = () => {
+    const maxAvailable = withdrawFormAsset === 'usdt' ? user.balanceUSDT : user.xgtWithdrawable;
+    const normalized = withdrawAmountStr.replace(/,/g, '').trim();
+    const parsed = normalized === '' ? NaN : Number.parseFloat(normalized);
+    const hasInput = normalized !== '';
+    const validNumber = !Number.isNaN(parsed) && parsed > 0;
+    const withinBalance = validNumber && parsed <= maxAvailable + 1e-9;
+    const valid = validNumber && withinBalance;
+    const fee = valid ? parsed * 0.05 : 0;
+    const net = valid ? parsed - fee : 0;
+
+    let errorKey: string | null = null;
+    if (hasInput && !validNumber) errorKey = 'withdrawInvalidAmount';
+    else if (validNumber && !withinBalance) errorKey = 'withdrawExceedsBalance';
+
+    const closeForm = () => {
+      setWalletView('overview');
+      setWithdrawAmountStr('');
+    };
+
+    const onAmountChange = (raw: string) => {
+      let s = raw.replace(/[^\d.]/g, '');
+      const firstDot = s.indexOf('.');
+      if (firstDot !== -1) {
+        s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '');
+      }
+      setWithdrawAmountStr(s);
+    };
+
+    const submitWithdraw = () => {
+      if (!valid || !user) return;
+      const feeAmt = parsed * 0.05;
+      setUser((u) =>
+        !u
+          ? u
+          : {
+              ...u,
+              balanceUSDT: withdrawFormAsset === 'usdt' ? u.balanceUSDT - parsed : u.balanceUSDT,
+              xgtWithdrawable: withdrawFormAsset === 'xgt' ? u.xgtWithdrawable - parsed : u.xgtWithdrawable,
+            },
+      );
+      setWithdrawalList((prev) => [
+        {
+          id: `wd-${Date.now()}`,
+          asset: withdrawFormAsset,
+          amount: parsed,
+          fee: feeAmt,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+      closeForm();
+      window.alert(t('withdrawSubmitted'));
+    };
+
+    const title = withdrawFormAsset === 'usdt' ? t('withdrawCtaUsdt') : t('withdrawCtaXgt');
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-24">
+        <div className="flex items-center justify-between pt-4">
+          <button
+            type="button"
+            onClick={closeForm}
+            className="flex items-center gap-2 text-[11px] font-bold uppercase text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            <ArrowLeft size={18} />
+            {t('backToAssets')}
+          </button>
+          <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.3em] max-w-[55%] text-right leading-tight">
+            {title}
+          </span>
+        </div>
+
+        <Card className="p-6 bg-white border border-slate-200 shadow-xl space-y-5">
+          <div className="flex justify-between items-baseline gap-3">
+            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">{t('withdrawAvailable')}</p>
+            <p className="text-xl font-serif font-bold text-slate-900 tabular-nums">
+              {maxAvailable.toLocaleString(undefined, { maximumFractionDigits: 8 })}{' '}
+              <span className="text-[10px] font-sans font-bold text-slate-400">
+                {withdrawFormAsset === 'usdt' ? 'USDT' : '$XGT'}
+              </span>
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="withdraw-amt" className="text-[10px] text-slate-400 uppercase font-bold tracking-widest block mb-2">
+              {t('withdrawAmountLabel')}
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="withdraw-amt"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder={t('withdrawAmountPlaceholder')}
+                value={withdrawAmountStr}
+                onChange={(e) => onAmountChange(e.target.value)}
+                className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-serif font-bold text-slate-900 tabular-nums outline-none focus:ring-2 focus:ring-brand-primary/30"
+              />
+              <button
+                type="button"
+                onClick={() => setWithdrawAmountStr(String(maxAvailable))}
+                className="shrink-0 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider bg-slate-900 text-brand-primary border border-slate-900 hover:bg-slate-800 transition-colors"
+              >
+                {t('withdrawMax')}
+              </button>
+            </div>
+            {errorKey ? <p className="text-[11px] text-rose-600 font-medium mt-2">{t(errorKey)}</p> : null}
+          </div>
+
+          {valid ? (
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 space-y-2 text-sm">
+              <div className="flex justify-between text-slate-600">
+                <span>{t('withdrawFeePreview')}</span>
+                <span className="font-mono tabular-nums">
+                  −{fee.toLocaleString(undefined, { maximumFractionDigits: 8 })}{' '}
+                  {withdrawFormAsset === 'usdt' ? 'USDT' : 'XGT'}
+                </span>
+              </div>
+              <div className="flex justify-between font-bold text-slate-900 pt-2 border-t border-slate-200">
+                <span>{t('withdrawNetReceive')}</span>
+                <span className="font-mono tabular-nums text-emerald-800">
+                  {net.toLocaleString(undefined, { maximumFractionDigits: 8 })}{' '}
+                  {withdrawFormAsset === 'usdt' ? 'USDT' : 'XGT'}
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          <p className="text-[9px] text-slate-400 text-center">{t('withdrawFeeNote')}</p>
+
+          <button
+            type="button"
+            disabled={!valid}
+            onClick={submitWithdraw}
+            className="w-full bg-brand-primary text-slate-900 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-brand-primary/90 transition-all active:scale-[0.98] shadow-xl shadow-brand-primary/20 disabled:opacity-40 disabled:pointer-events-none"
+          >
+            {t('withdrawConfirm')}
+          </button>
+        </Card>
+      </motion.div>
+    );
+  };
+
   const renderLedgerPreviewIcon = (ty: RewardType) =>
     ({
       static: (
@@ -1712,6 +2036,8 @@ export default function App() {
 
   const renderWallet = () => {
     if (walletView === 'rewards') return renderRewardsDetail();
+    if (walletView === 'withdrawals') return renderWithdrawalHistory();
+    if (walletView === 'withdrawForm') return renderWithdrawForm();
 
     const previewRows = MOCK_REWARDS.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 3);
 
@@ -1727,61 +2053,73 @@ export default function App() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-24">
         <div className="pt-4 space-y-2">
           <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">{t('assetHub')}</h2>
-          <p className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">{t('initializing')}</p>
+          <p className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">{t('nodeSynced')}</p>
         </div>
 
-        <Card className="p-10 bg-white border border-slate-200 shadow-2xl relative overflow-hidden group">
+        <Card className="p-8 bg-white border border-slate-200 shadow-2xl relative overflow-hidden group">
           <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-brand-primary opacity-5 blur-[120px] group-hover:opacity-10 transition-opacity duration-700" />
-          <p className="text-slate-400 text-[10px] uppercase font-bold tracking-[0.2em] mb-4 relative z-10">{t('withdrawableBalance')}</p>
-          <h3 className="text-6xl font-serif font-bold text-slate-900 tracking-tight flex items-baseline gap-3 relative z-10">
-            {(user.balanceUSDT + user.balanceXGT * 1.5).toFixed(2)}
-            <span className="text-xs font-sans font-bold text-brand-primary tracking-widest uppercase">USDT</span>
-          </h3>
-
-          <div className="mt-12 pt-8 border-t border-slate-100 grid grid-cols-2 gap-8 relative z-10">
-            <div>
-              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-2">{t('usdtWallet')}</p>
-              <p className="text-3xl font-serif font-bold text-slate-900 tracking-tight">{user.balanceUSDT.toFixed(2)}</p>
+          <div className="relative z-10 space-y-0 divide-y divide-slate-100">
+            <div className="flex items-end justify-between gap-4 pb-6">
+              <div className="min-w-0">
+                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mb-2">{t('withdrawableUsdt')}</p>
+                <p className="text-4xl font-serif font-bold text-slate-900 tracking-tight tabular-nums">{user.balanceUSDT.toFixed(2)}</p>
+              </div>
+              <span className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-widest shrink-0 pb-1">USDT</span>
             </div>
-            <div>
-              <p className="text-[10px] text-brand-primary/80 uppercase font-bold tracking-widest mb-2">{t('stakedAsset')}</p>
-              <p className="text-3xl font-serif font-bold text-brand-primary tracking-tight">{user.balanceXGT.toFixed(2)}</p>
+            <div className="flex items-end justify-between gap-4 py-6">
+              <div className="min-w-0">
+                <p className="text-[10px] text-brand-primary/90 uppercase font-bold tracking-[0.2em] mb-2">{t('withdrawableXgt')}</p>
+                <p className="text-4xl font-serif font-bold text-brand-primary tracking-tight tabular-nums">
+                  {user.xgtWithdrawable.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <span className="text-[10px] font-sans font-bold text-brand-primary/80 uppercase tracking-widest shrink-0 pb-1">$XGT</span>
+            </div>
+            <div className="flex items-end justify-between gap-4 pt-6">
+              <div className="min-w-0">
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mb-2">{t('lockedXgt')}</p>
+                <p className="text-3xl font-serif font-bold text-slate-700 tracking-tight tabular-nums">
+                  {user.xgtLocked.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <span className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-widest shrink-0 pb-1">$XGT</span>
             </div>
           </div>
         </Card>
 
-        <Card className="p-8 border-slate-100 bg-white shadow-xl shadow-slate-200/20">
-          <SectionTitle title={t('stabilityLoop')} />
-          <p className="text-xs text-slate-500 leading-relaxed font-medium mb-8">{t('stabilityDesc')}</p>
-          <div className="flex gap-4">
-            <div className="flex-1 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1">Total Burned</p>
-              <p className="text-lg font-serif font-bold text-rose-600">1,240,500 XGT</p>
-            </div>
-            <div className="flex-1 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-1">Buyback Fund</p>
-              <p className="text-lg font-serif font-bold text-emerald-600">842,000 U</p>
-            </div>
+        <Card className="p-8 border-slate-100 bg-white shadow-xl shadow-slate-200/20 space-y-4">
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setWithdrawFormAsset('usdt');
+                setWithdrawAmountStr('');
+                setWalletView('withdrawForm');
+              }}
+              className="w-full bg-slate-50 text-slate-900 border border-slate-200 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+            >
+              {t('withdrawCtaUsdt')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setWithdrawFormAsset('xgt');
+                setWithdrawAmountStr('');
+                setWalletView('withdrawForm');
+              }}
+              className="w-full bg-brand-primary text-slate-900 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-brand-primary/90 transition-all active:scale-95 shadow-xl shadow-brand-primary/20"
+            >
+              {t('withdrawCtaXgt')}
+            </button>
           </div>
-          <div className="flex gap-4 mt-4">
-            <div className="flex-1">
-              <button
-                type="button"
-                className="w-full bg-slate-50 text-slate-900 border border-slate-200 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
-              >
-                {t('withdraw')}
-              </button>
-              <p className="text-center text-[8px] text-slate-400 mt-2">5% Processing Fee Applied</p>
-            </div>
-            <div className="flex-1">
-              <button
-                type="button"
-                className="w-full bg-brand-primary text-slate-900 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-brand-primary/90 transition-all active:scale-95 shadow-xl shadow-brand-primary/20"
-              >
-                {t('swap')}
-              </button>
-            </div>
-          </div>
+          <p className="text-center text-[8px] text-slate-400">{t('withdrawFeeNote')}</p>
+          <button
+            type="button"
+            onClick={() => setWalletView('withdrawals')}
+            className="w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary border border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 transition-colors"
+          >
+            {t('withdrawalHistory')} →
+          </button>
         </Card>
 
         <div className="space-y-4">
