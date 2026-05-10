@@ -934,6 +934,10 @@ export default function App() {
   // Simulate CEX injection
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const cexToken = params.get('token');
+    if (cexToken) {
+      localStorage.setItem('xagent_token', cexToken);
+    }
     const mockUser: UserState = {
       uid: params.get('uid') || 'UX_88291',
       refCode: params.get('ref') || 'XGT_GOLD',
