@@ -26,6 +26,28 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  fetchMyMiners,
+  fetchRewardsDaily,
+  fetchMyXgtLocks,
+  fetchBinaryTeam,
+  fetchMyGoldWallet,
+  submitGoldWithdraw,
+  fetchMyAgent,
+  fetchAgentApplications,
+  submitAgencyApply,
+  cancelAgencyApplication,
+  fetchFounderStatus,
+  submitFounderPurchase,
+  ApiMyMiner,
+  ApiRewardEntry,
+  ApiXgtLock,
+  ApiBinaryTeam,
+  ApiMyAgent,
+  ApiAgencyApplication,
+  ApiAgencyUpgradeOption,
+  ApiFounderStatus,
+} from './utils/goldApi';
 import goldTrustVisualUrl from './public/image/gold.png';
 import aiComputeVisualUrl from './public/image/gold2.png';
 import ecosystemOverviewVisualUrl from './public/image/gold3.jpg';
@@ -96,6 +118,9 @@ const translations: Record<string, any> = {
     withdrawAvailable: "Available",
     withdrawMax: "Max",
     withdrawConfirm: "Confirm withdrawal",
+    withdrawFundPasswordLabel: "Fund Password",
+    withdrawFundPasswordPlaceholder: "Enter fund password",
+    withdrawFundPasswordRequired: "Please enter your fund password",
     withdrawFeePreview: "Fee (5%)",
     withdrawNetReceive: "You receive (est.)",
     withdrawExceedsBalance: "Exceeds available balance",
@@ -200,6 +225,94 @@ const translations: Record<string, any> = {
     founderPerk6Desc: "49 seats share 10% of total $XGT supply equally per seat.",
     founderPerk7Title: "VIP Concierge",
     founderPerk7Desc: "Dedicated support, operations and ticket handling.",
+
+    // XGT Locks (renderXgtLocks)
+    xgtLocksTab: "XGT",
+    xgtLocksHeader: "$XGT Lock Plans",
+    xgtLocksSubtitle: "30-day cliff release · auto-credited from static dividends",
+    xgtSummaryTotal: "Total $XGT",
+    xgtSummaryLocked: "In Lock",
+    xgtSummaryUnlocked: "Unlocked",
+    xgtNoLocksTitle: "No locked $XGT yet",
+    xgtNoLocksDesc: "Static dividends auto-create 30-day $XGT lock plans. Buy a miner to start.",
+    xgtLockStatus_locked: "Locked",
+    xgtLockStatus_releasable: "Releasable",
+    xgtLockStatus_completed: "Released",
+    xgtLockStatus_frozen: "Frozen",
+    xgtLockSource_static_reward: "Static dividend",
+    xgtLockSource_founder_seat: "Founding seat",
+    xgtLockSource_team_advisor: "Team advisor",
+    xgtLockSource_private_sale: "Private sale",
+    xgtLockSource_ecosystem_fund: "Ecosystem fund",
+    xgtLockSource_partner: "Partner allocation",
+    xgtLockedAt: "Locked",
+    xgtReleaseAt: "Release",
+    xgtDaysRemaining: "{n} days left",
+    xgtUnlockReady: "Ready to release",
+    xgtAlreadyReleased: "Released",
+    xgtLockProgress: "30-day progress",
+
+    // Binary team (renderNetwork)
+    todayShort: "today",
+    agentLevel: "Agent",
+    matchRate: "Match",
+    weakToday: "Weak today",
+
+    // Agency center (renderAgencyCenter)
+    agencyTabTitle: "Agent Center",
+    agencyBack: "Back",
+    agencyCurrentLevel: "Current tier",
+    agencyMatchRateLabel: "Match rate",
+    agencyGlobalDividend: "Global dividend",
+    agencyStatusActive: "Active",
+    agencyStatusFrozen: "Frozen",
+    agencyPendingHint: "Application for {level} under review",
+    agencyCancelApplication: "Cancel application",
+    agencyCancelConfirm: "Cancel this pending application?",
+    agencyCancelSuccess: "Application cancelled",
+    agencyUpgradeOptions: "Available upgrades",
+    agencyConditionMiner: "Active miner value",
+    agencyConditionDirect: "Direct V1+ agents",
+    agencyConditionLeft: "Left cumulative",
+    agencyConditionRight: "Right cumulative",
+    agencyApplyButton: "Apply",
+    agencyApplyDisabled: "Not eligible",
+    agencyApplyMaxLevel: "Top tier reached",
+    agencyApplyDialogTitle: "Apply for {level}",
+    agencyApplyReasonLabel: "Reason (optional)",
+    agencyApplyReasonPlaceholder: "Briefly explain why you qualify (optional)",
+    agencyApplySubmit: "Submit",
+    agencyApplyCancel: "Cancel",
+    agencyApplySuccess: "Application submitted",
+    agencyApplyError: "Submission failed",
+    agencyHistoryTitle: "My applications",
+    agencyHistoryEmpty: "No applications yet",
+    agencyAppStatus_pending: "Pending",
+    agencyAppStatus_approved: "Approved",
+    agencyAppStatus_rejected: "Rejected",
+    agencyAppStatus_cancelled: "Cancelled",
+    agencyReviewedAt: "Reviewed",
+    agencyReviewRemark: "Review note",
+    homeAgencyCardTitle: "Become an Agent",
+    homeAgencyCardSubtitle: "Unlock matching rewards and global dividends",
+    homeAgencyCardTitleLevel: "Tier {level} active",
+    homeAgencyCardSubtitleLevel: "Tap to view upgrade conditions",
+
+    // Founder seats (mines/shop)
+    founderRemainingLabel: "{remaining}/49 seats left",
+    founderSeatTakenLabel: "Sold out",
+    founderMineLabel: "Seat #{seatNo} · you",
+    founderApplyCtaOwned: "View my seat",
+    founderApplyCtaSoldOut: "Sold out",
+    founderApplyDialogTitle: "Purchase founding seat",
+    founderApplyDialogSubtitle: "Single seat: {price} USDT · spot wallet · one seat per user",
+    founderApplyAcknowledge: "I understand 200,000 USDT will be deducted from my spot balance and this purchase is non-refundable.",
+    founderFundPasswordLabel: "Fund password",
+    founderFundPasswordPlaceholder: "Enter your fund password",
+    founderApplyConfirm: "Confirm purchase",
+    founderApplyCancel: "Cancel",
+    founderApplySuccessToast: "Purchase successful · seat #{seatNo}",
+    founderApplyFailToast: "Purchase failed",
   },
   zh: {
     home: "首页",
@@ -262,6 +375,9 @@ const translations: Record<string, any> = {
     withdrawAvailable: "可提",
     withdrawMax: "全部",
     withdrawConfirm: "确认提现",
+    withdrawFundPasswordLabel: "资金密码",
+    withdrawFundPasswordPlaceholder: "请输入资金密码",
+    withdrawFundPasswordRequired: "请输入资金密码",
     withdrawFeePreview: "手续费（5%）",
     withdrawNetReceive: "预计到账",
     withdrawExceedsBalance: "超过可提余额",
@@ -366,6 +482,94 @@ const translations: Record<string, any> = {
     founderPerk6Desc: "49 席合计获得总供应 10%，每席均分。",
     founderPerk7Title: "VIP 专属通道",
     founderPerk7Desc: "专属客服、运营、工单处理。",
+
+    // XGT 锁仓页（renderXgtLocks）
+    xgtLocksTab: "XGT",
+    xgtLocksHeader: "$XGT 锁仓计划",
+    xgtLocksSubtitle: "30 天一次性释放 · 静态分红自动入仓",
+    xgtSummaryTotal: "$XGT 总余额",
+    xgtSummaryLocked: "锁仓中",
+    xgtSummaryUnlocked: "可用余额",
+    xgtNoLocksTitle: "暂无锁仓 $XGT",
+    xgtNoLocksDesc: "静态分红会自动生成 30 天 $XGT 锁仓计划，购买矿机即可开始。",
+    xgtLockStatus_locked: "锁仓中",
+    xgtLockStatus_releasable: "可释放",
+    xgtLockStatus_completed: "已释放",
+    xgtLockStatus_frozen: "已冻结",
+    xgtLockSource_static_reward: "静态分红",
+    xgtLockSource_founder_seat: "创世席位",
+    xgtLockSource_team_advisor: "顾问奖励",
+    xgtLockSource_private_sale: "私募",
+    xgtLockSource_ecosystem_fund: "生态基金",
+    xgtLockSource_partner: "合作方分配",
+    xgtLockedAt: "锁仓时间",
+    xgtReleaseAt: "解锁时间",
+    xgtDaysRemaining: "剩余 {n} 天",
+    xgtUnlockReady: "可释放",
+    xgtAlreadyReleased: "已释放",
+    xgtLockProgress: "30 天进度",
+
+    // 双轨团队页（renderNetwork）
+    todayShort: "今日",
+    agentLevel: "代理等级",
+    matchRate: "匹配率",
+    weakToday: "今日弱区",
+
+    // 代理中心（renderAgencyCenter）
+    agencyTabTitle: "代理中心",
+    agencyBack: "返回",
+    agencyCurrentLevel: "当前等级",
+    agencyMatchRateLabel: "匹配率",
+    agencyGlobalDividend: "全网分红",
+    agencyStatusActive: "正常",
+    agencyStatusFrozen: "已冻结",
+    agencyPendingHint: "{level} 升级申请审核中",
+    agencyCancelApplication: "撤销申请",
+    agencyCancelConfirm: "确认撤销该笔待审核的申请？",
+    agencyCancelSuccess: "已撤销申请",
+    agencyUpgradeOptions: "可申请升级",
+    agencyConditionMiner: "有效矿机总值",
+    agencyConditionDirect: "直推 V1+ 代理",
+    agencyConditionLeft: "左区累计",
+    agencyConditionRight: "右区累计",
+    agencyApplyButton: "申请",
+    agencyApplyDisabled: "未达标",
+    agencyApplyMaxLevel: "已到顶级",
+    agencyApplyDialogTitle: "申请 {level}",
+    agencyApplyReasonLabel: "申请理由（选填）",
+    agencyApplyReasonPlaceholder: "简要说明你为何符合条件（可不填）",
+    agencyApplySubmit: "提交",
+    agencyApplyCancel: "取消",
+    agencyApplySuccess: "已提交申请",
+    agencyApplyError: "提交失败",
+    agencyHistoryTitle: "我的申请",
+    agencyHistoryEmpty: "暂无申请记录",
+    agencyAppStatus_pending: "审核中",
+    agencyAppStatus_approved: "已通过",
+    agencyAppStatus_rejected: "已拒绝",
+    agencyAppStatus_cancelled: "已撤销",
+    agencyReviewedAt: "审核时间",
+    agencyReviewRemark: "审核备注",
+    homeAgencyCardTitle: "成为代理",
+    homeAgencyCardSubtitle: "解锁团队匹配奖与全网手续费分红",
+    homeAgencyCardTitleLevel: "{level} 代理生效中",
+    homeAgencyCardSubtitleLevel: "查看下一档升级条件",
+
+    // 创世席位（mines/shop）
+    founderRemainingLabel: "剩余 {remaining}/49 席",
+    founderSeatTakenLabel: "已售罄",
+    founderMineLabel: "第 {seatNo} 席 · 您持有",
+    founderApplyCtaOwned: "查看我的席位",
+    founderApplyCtaSoldOut: "已售罄",
+    founderApplyDialogTitle: "购买创世席位",
+    founderApplyDialogSubtitle: "单席 {price} USDT · 现货钱包扣款 · 每人限购一席",
+    founderApplyAcknowledge: "我已知悉将从现货账户扣 200,000 USDT 且本次购买不可退款",
+    founderFundPasswordLabel: "资金密码",
+    founderFundPasswordPlaceholder: "请输入资金密码",
+    founderApplyConfirm: "确认购买",
+    founderApplyCancel: "取消",
+    founderApplySuccessToast: "购买成功 · 第 {seatNo} 席",
+    founderApplyFailToast: "购买失败",
   }
 };
 
@@ -728,63 +932,45 @@ const MOCK_WITHDRAWALS: WithdrawalEntry[] = [
   { id: 'wd-x3', asset: 'xgt', amount: 320, fee: 16, status: 'completed', createdAt: '2026-04-28T09:30:00.000Z' },
 ];
 
-/** Demo miners — swap for GET /nodes/my */
-const MOCK_MY_MINERS: MyMiner[] = [
-  {
-    id: 'm-l4-001',
-    level: 'L4',
-    status: 'active',
-    price: 20000,
-    dailyRate: 0.0195,
-    dailyStatic: 390,
-    accumulated: 12580,
-    healthTarget: 60000,
-    purchasedAt: '2026-03-01T08:00:00.000Z',
-    isCurrentActive: true,
-  },
-  {
-    id: 'm-l2-001',
-    level: 'L2',
-    status: 'active',
-    price: 2000,
-    dailyRate: 0.0125,
-    dailyStatic: 25,
-    accumulated: 420,
-    healthTarget: 6000,
-    purchasedAt: '2026-02-10T08:00:00.000Z',
-    isCurrentActive: false,
-  },
-  {
-    id: 'm-l1-001',
-    level: 'L1',
-    status: 'expired',
-    price: 500,
-    dailyRate: 0.01,
-    dailyStatic: 5,
-    accumulated: 1500,
-    healthTarget: 1500,
-    purchasedAt: '2025-12-01T08:00:00.000Z',
-    isCurrentActive: false,
-  },
-];
+/**
+ * 后端 → 前端字段适配（保持本地 interface 形状不变，避免大面积改 JSX）
+ *  - id 数字 → 字符串
+ *  - level 字符串 → MinerLevel 联合类型
+ *  - status / type 字符串 → 联合类型
+ *  - relatedMinerId 数字 → 字符串
+ *
+ * 后端字段命名已严格对齐 interface MyMiner / RewardEntry，未做语义映射。
+ */
+function adaptMyMiner(raw: ApiMyMiner): MyMiner {
+  return {
+    id: String(raw.id),
+    level: raw.level as MinerLevel,
+    status: raw.status as MyMiner['status'],
+    price: Number(raw.price ?? 0),
+    dailyRate: Number(raw.dailyRate ?? 0),
+    dailyStatic: Number(raw.dailyStatic ?? 0),
+    accumulated: Number(raw.accumulated ?? 0),
+    healthTarget: Number(raw.healthTarget ?? 0),
+    purchasedAt: raw.purchasedAt,
+    isCurrentActive: !!raw.isCurrentActive,
+  };
+}
 
-/** Demo rewards — swap for GET /rewards/daily */
-const MOCK_REWARDS: RewardEntry[] = [
-  { id: 'rw001', type: 'static', createdAt: '2026-05-02T00:05:05.000Z', gross: 390, usdtCredited: 195, ecoCreditLocked: 0, healthCounted: 390, relatedMinerId: 'm-l4-001', status: 'settled', xgtNominalUsd: 195 },
-  { id: 'rw002', type: 'referral', createdAt: '2026-05-02T14:22:00.000Z', gross: 1000, usdtCredited: 700, ecoCreditLocked: 300, healthCounted: 1000, relatedMinerId: 'm-l4-001', status: 'settled' },
-  { id: 'rw003', type: 'team', createdAt: '2026-05-02T00:10:03.000Z', gross: 3200, usdtCredited: 2240, ecoCreditLocked: 960, healthCounted: 3200, relatedMinerId: 'm-l4-001', status: 'settled' },
-  { id: 'rw004', type: 'agency_fee', createdAt: '2026-05-01T00:15:08.000Z', gross: 88.12, usdtCredited: 88.12, ecoCreditLocked: 0, healthCounted: 0, status: 'settled' },
-  { id: 'rw005', type: 'founder_fee', createdAt: '2026-05-01T00:15:09.000Z', gross: 210.05, usdtCredited: 210.05, ecoCreditLocked: 0, healthCounted: 0, status: 'settled' },
-  { id: 'rw006', type: 'xgt_unlock', createdAt: '2026-05-02T00:25:02.000Z', gross: 0, usdtCredited: 0, ecoCreditLocked: 0, healthCounted: 0, status: 'released', amountXgt: 4200 },
-  { id: 'rw007', type: 'eco_credit_unlock', createdAt: '2026-05-03T09:41:00.000Z', gross: 260, usdtCredited: 260, ecoCreditLocked: 0, healthCounted: 0, status: 'unlocked' },
-  { id: 'rw008', type: 'static', createdAt: '2026-05-03T00:05:06.000Z', gross: 25, usdtCredited: 12.5, ecoCreditLocked: 0, healthCounted: 25, relatedMinerId: 'm-l2-001', status: 'settled', xgtNominalUsd: 12.5 },
-  { id: 'rw009', type: 'static', createdAt: '2026-05-04T00:05:07.000Z', gross: 390, usdtCredited: 195, ecoCreditLocked: 0, healthCounted: 390, relatedMinerId: 'm-l4-001', status: 'settled', xgtNominalUsd: 195 },
-  { id: 'rw010', type: 'referral', createdAt: '2026-05-04T16:08:00.000Z', gross: 600, usdtCredited: 420, ecoCreditLocked: 180, healthCounted: 600, relatedMinerId: 'm-l4-001', status: 'settled' },
-  { id: 'rw011', type: 'team', createdAt: '2026-05-05T00:10:03.000Z', gross: 1200, usdtCredited: 840, ecoCreditLocked: 360, healthCounted: 1200, relatedMinerId: 'm-l4-001', status: 'settled' },
-  { id: 'rw012', type: 'agency_fee', createdAt: '2026-05-05T00:15:10.000Z', gross: 92.44, usdtCredited: 92.44, ecoCreditLocked: 0, healthCounted: 0, status: 'settled' },
-  { id: 'rw013', type: 'xgt_unlock', createdAt: '2026-05-05T00:25:03.000Z', gross: 0, usdtCredited: 0, ecoCreditLocked: 0, healthCounted: 0, status: 'released', amountXgt: 800 },
-  { id: 'rw014', type: 'eco_credit_unlock', createdAt: '2026-05-06T11:05:00.000Z', gross: 180, usdtCredited: 180, ecoCreditLocked: 0, healthCounted: 0, status: 'unlocked' },
-];
+function adaptReward(raw: ApiRewardEntry): RewardEntry {
+  return {
+    id: String(raw.id),
+    type: raw.type as RewardType,
+    createdAt: raw.createdAt,
+    gross: Number(raw.gross ?? 0),
+    usdtCredited: Number(raw.usdtCredited ?? 0),
+    ecoCreditLocked: Number(raw.ecoCreditLocked ?? 0),
+    healthCounted: Number(raw.healthCounted ?? 0),
+    relatedMinerId: raw.relatedMinerId == null ? undefined : String(raw.relatedMinerId),
+    status: raw.status as RewardEntry['status'],
+    xgtNominalUsd: raw.xgtNominalUsd == null ? undefined : Number(raw.xgtNominalUsd),
+    amountXgt: raw.amountXgt == null ? undefined : Number(raw.amountXgt),
+  };
+}
 
 function minerLevelNameKey(level: MinerLevel): string {
   const map: Record<MinerLevel, string> = {
@@ -902,6 +1088,67 @@ export default function App() {
   const [rewardFilter, setRewardFilter] = useState<RewardType | 'all'>('all');
   const [rewardMinerFilter, setRewardMinerFilter] = useState<string | null>(null);
 
+  // === 后端真实数据（PRD §17）===
+  const [myMiners, setMyMiners] = useState<MyMiner[]>([]);
+  const [rewards, setRewards] = useState<RewardEntry[]>([]);
+  const [xgtSummary, setXgtSummary] = useState<{
+    totalBalance: number;
+    balanceLocked: number;
+    balanceUnlocked: number;
+    locks: ApiXgtLock[];
+  } | null>(null);
+  const [binaryTeam, setBinaryTeam] = useState<ApiBinaryTeam | null>(null);
+
+  // 金矿子钱包费率（B 路线第一组，初始化时拉一次）
+  const [goldWalletFeeRate, setGoldWalletFeeRate] = useState<number>(0.05);
+  const [goldWalletFounderShareRate, setGoldWalletFounderShareRate] = useState<number>(0.01);
+  const [withdrawFundPassword, setWithdrawFundPassword] = useState<string>('');
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState<boolean>(false);
+
+  // 代理中心（A 路线第一组，lazy-loaded）
+  const [agencyInfo, setAgencyInfo] = useState<ApiMyAgent | null>(null);
+  const [agencyApplications, setAgencyApplications] = useState<ApiAgencyApplication[]>([]);
+  const [agencyLoading, setAgencyLoading] = useState(false);
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyTargetLevel, setApplyTargetLevel] = useState<string>('');
+  const [applyReason, setApplyReason] = useState('');
+  const [applySubmitting, setApplySubmitting] = useState(false);
+  const [agencyToast, setAgencyToast] = useState<string>('');
+
+  const reloadAgency = React.useCallback(() => {
+    setAgencyLoading(true);
+    Promise.all([
+      fetchMyAgent().then(setAgencyInfo).catch((e) => {
+        console.warn('[gold] fetchMyAgent failed', e);
+        setAgencyInfo(null);
+      }),
+      fetchAgentApplications().then((list) => setAgencyApplications(list || [])).catch((e) => {
+        console.warn('[gold] fetchAgentApplications failed', e);
+        setAgencyApplications([]);
+      }),
+    ]).finally(() => setAgencyLoading(false));
+  }, []);
+
+  // 创世 49 席（lazy on activeTab=mining + mineSubView=shop）
+  const [founderInfo, setFounderInfo] = useState<ApiFounderStatus | null>(null);
+  const [founderLoading, setFounderLoading] = useState(false);
+  const [founderDialogOpen, setFounderDialogOpen] = useState(false);
+  const [founderFundPassword, setFounderFundPassword] = useState('');
+  const [founderAcknowledged, setFounderAcknowledged] = useState(false);
+  const [founderSubmitting, setFounderSubmitting] = useState(false);
+  const [founderToast, setFounderToast] = useState<string>('');
+
+  const reloadFounder = React.useCallback(() => {
+    setFounderLoading(true);
+    fetchFounderStatus()
+      .then(setFounderInfo)
+      .catch((e) => {
+        console.warn('[gold] fetchFounderStatus failed', e);
+        setFounderInfo(null);
+      })
+      .finally(() => setFounderLoading(false));
+  }, []);
+
   const handleReturnToCex = () => {
     // Prefer returning to the container (CEX) via browser history.
     if (window.history.length > 1) {
@@ -950,14 +1197,149 @@ export default function App() {
     setUser(mockUser);
   }, []);
 
+  // 拉真实金矿数据（矿机 / 奖励 / XGT 锁仓）
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchMyMiners()
+      .then((list) => {
+        if (cancelled) return;
+        setMyMiners((list || []).map(adaptMyMiner));
+      })
+      .catch((e) => console.warn('[gold] fetchMyMiners failed', e));
+
+    fetchRewardsDaily({ pageSize: 100 })
+      .then((resp) => {
+        if (cancelled) return;
+        setRewards((resp?.rows || []).map(adaptReward));
+      })
+      .catch((e) => console.warn('[gold] fetchRewardsDaily failed', e));
+
+    fetchMyXgtLocks()
+      .then((resp) => {
+        if (cancelled) return;
+        setXgtSummary(resp || null);
+        // 用真实 XGT 余额覆盖 mock user 中的对应字段
+        if (resp) {
+          setUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  xgtWithdrawable: Number(resp.balanceUnlocked ?? 0),
+                  xgtLocked: Number(resp.balanceLocked ?? 0),
+                }
+              : prev,
+          );
+        }
+      })
+      .catch((e) => console.warn('[gold] fetchMyXgtLocks failed', e));
+
+    fetchBinaryTeam()
+      .then((resp) => {
+        if (cancelled) return;
+        setBinaryTeam(resp || null);
+        // 用真实双轨累计业绩覆盖 mock user.leftVol / rightVol
+        if (resp) {
+          setUser((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  leftVol: Number(resp.leftTotalVolume ?? 0),
+                  rightVol: Number(resp.rightTotalVolume ?? 0),
+                  riskFrozen: resp.agentStatus === 'frozen',
+                }
+              : prev,
+          );
+        }
+      })
+      .catch((e) => console.warn('[gold] fetchBinaryTeam failed', e));
+
+    // 金矿子钱包余额（B 路线第一组）：用真实 USDT 子钱包余额 + 费率覆盖 mock balanceUSDT
+    fetchMyGoldWallet()
+      .then((resp) => {
+        if (cancelled || !resp) return;
+        setGoldWalletFeeRate(Number(resp.feeRate ?? 0.05));
+        setGoldWalletFounderShareRate(Number(resp.founderShareRate ?? 0.01));
+        setUser((prev) =>
+          prev
+            ? { ...prev, balanceUSDT: Number(resp.usdtBalance ?? 0) }
+            : prev,
+        );
+      })
+      .catch((e) => console.warn('[gold] fetchMyGoldWallet failed', e));
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 切到代理 tab 时按需拉数据；切走时不清空，方便返回保留状态
+  useEffect(() => {
+    if (activeTab === 'agency' && !agencyLoading) {
+      reloadAgency();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // mines / shop 时按需拉创世状态
+  useEffect(() => {
+    if (activeTab === 'mining' && mineSubView === 'shop' && !founderLoading) {
+      reloadFounder();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, mineSubView]);
+
+  // toast 自动消失
+  useEffect(() => {
+    if (!agencyToast) return;
+    const id = window.setTimeout(() => setAgencyToast(''), 2400);
+    return () => window.clearTimeout(id);
+  }, [agencyToast]);
+
+  useEffect(() => {
+    if (!founderToast) return;
+    const id = window.setTimeout(() => setFounderToast(''), 2800);
+    return () => window.clearTimeout(id);
+  }, [founderToast]);
+
   if (!user) return <div className="min-h-screen bg-bg-main flex items-center justify-center text-brand-primary font-black italic tracking-tighter uppercase">{t('initializing')}</div>;
 
   const renderHome = () => (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6 pb-24"
     >
+      {/* Agency upgrade quick card (A 路线第一组入口) */}
+      <button
+        type="button"
+        onClick={() => setActiveTab('agency')}
+        className="w-full text-left"
+      >
+        <Card className="p-5 bg-gradient-to-r from-amber-50 via-white to-emerald-50 border-amber-100/70 hover:border-amber-300 transition-colors">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <Trophy className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">
+                  {agencyInfo?.currentLevel && agencyInfo.currentLevel !== 'V0'
+                    ? t('homeAgencyCardTitleLevel', { level: agencyInfo.currentLevel })
+                    : t('homeAgencyCardTitle')}
+                </p>
+                <p className="text-[12px] font-semibold text-slate-700 mt-0.5">
+                  {agencyInfo?.currentLevel && agencyInfo.currentLevel !== 'V0'
+                    ? t('homeAgencyCardSubtitleLevel')
+                    : t('homeAgencyCardSubtitle')}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+          </div>
+        </Card>
+      </button>
+
       {/* Wallet Summary */}
       <Card className="p-6 bg-white border-neutral-100 relative group shadow-xl shadow-neutral-100/50">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-primary opacity-5 blur-[80px] group-hover:opacity-10 transition-opacity" />
@@ -1081,7 +1463,7 @@ export default function App() {
   );
 
   const renderMyMiners = () => {
-    const sorted = [...MOCK_MY_MINERS].sort((a, b) => {
+    const sorted = [...myMiners].sort((a, b) => {
       if (a.isCurrentActive) return -1;
       if (b.isCurrentActive) return 1;
       const rank: Record<MinerLevel, number> = { L6: 6, L5: 5, L4: 4, L3: 3, L2: 2, L1: 1 };
@@ -1283,65 +1665,98 @@ export default function App() {
         ))}
       </div>
 
-      <div className="relative pt-4">
-        <Card className="p-7 border-neutral-100 bg-white shadow-2xl shadow-brand-primary/10 relative overflow-hidden">
-          <div className="absolute top-3 right-3">
-            <span className="bg-brand-primary text-slate-900 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-tighter">{t('limitedSeats', { remaining: GENESIS_NODE.remaining })}</span>
-          </div>
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-brand-primary to-amber-700 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3">
-              <Trophy size={28} className="text-black/80" />
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-neutral-900 italic tracking-tighter uppercase">{t('foundingPartners')}</h3>
-              <p className="text-brand-primary text-[10px] uppercase font-black tracking-widest">{t('godTierNode')}</p>
-            </div>
-          </div>
+      {(() => {
+        const remaining = founderInfo?.availableCount ?? GENESIS_NODE.remaining;
+        const price = Number(founderInfo?.priceUsdt ?? GENESIS_NODE.price);
+        const mySeat = founderInfo?.mySeat || null;
+        const soldOut = remaining <= 0 && !mySeat;
+        const ctaLabel = mySeat
+          ? t('founderApplyCtaOwned')
+          : soldOut
+          ? t('founderApplyCtaSoldOut')
+          : t('founderApplyCta');
 
-          <div className="mb-8 space-y-2">
-            <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">
-              {t('founderPerksTitle')}
-            </p>
-            {GENESIS_NODE.perks.map((perk) => (
-              <details
-                key={perk.titleKey}
-                className="group rounded-2xl border border-neutral-100 bg-neutral-50 overflow-hidden"
-              >
-                <summary className="cursor-pointer select-none list-none px-3 py-3 flex items-center gap-3">
-                  <ShieldCheck size={16} className="text-brand-secondary shrink-0" />
-                  <span className="flex-1 text-[11px] font-bold tracking-tight text-neutral-800">
-                    {t(perk.titleKey)}
-                  </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-brand-primary transition-transform duration-200 group-open:rotate-90"
-                  />
-                </summary>
-                <div className="px-3 pb-3 pl-9">
-                  <p className="text-[11px] leading-relaxed text-neutral-600">
-                    {t(perk.descKey)}
-                  </p>
+        return (
+          <div className="relative pt-4">
+            <Card className="p-7 border-neutral-100 bg-white shadow-2xl shadow-brand-primary/10 relative overflow-hidden">
+              <div className="absolute top-3 right-3">
+                <span className={`text-slate-900 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-tighter ${
+                  mySeat ? 'bg-emerald-200' : soldOut ? 'bg-slate-200' : 'bg-brand-primary'
+                }`}>
+                  {mySeat
+                    ? t('founderMineLabel', { seatNo: mySeat.seatNo })
+                    : soldOut
+                    ? t('founderSeatTakenLabel')
+                    : t('founderRemainingLabel', { remaining })}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-14 h-14 bg-gradient-to-br from-brand-primary to-amber-700 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3">
+                  <Trophy size={28} className="text-black/80" />
                 </div>
-              </details>
-            ))}
-          </div>
+                <div>
+                  <h3 className="text-xl font-black text-neutral-900 italic tracking-tighter uppercase">{t('foundingPartners')}</h3>
+                  <p className="text-brand-primary text-[10px] uppercase font-black tracking-widest">{t('godTierNode')}</p>
+                </div>
+              </div>
 
-          <div className="flex flex-col gap-6 pt-6 border-t border-neutral-100 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest">{t('founderApplicationFeeLabel')}</p>
-              <span className="text-2xl font-serif font-bold text-slate-900 tracking-tighter">
-                {GENESIS_NODE.price.toLocaleString()} <span className="text-sm">USDT</span>
-              </span>
-            </div>
-            <button
-              type="button"
-              className="bg-slate-900 text-brand-primary px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.12em] border border-slate-800 hover:bg-brand-primary hover:text-slate-900 transition-colors shadow-lg shrink-0"
-            >
-              {t('founderApplyCta')}
-            </button>
+              <div className="mb-8 space-y-2">
+                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">
+                  {t('founderPerksTitle')}
+                </p>
+                {GENESIS_NODE.perks.map((perk) => (
+                  <details
+                    key={perk.titleKey}
+                    className="group rounded-2xl border border-neutral-100 bg-neutral-50 overflow-hidden"
+                  >
+                    <summary className="cursor-pointer select-none list-none px-3 py-3 flex items-center gap-3">
+                      <ShieldCheck size={16} className="text-brand-secondary shrink-0" />
+                      <span className="flex-1 text-[11px] font-bold tracking-tight text-neutral-800">
+                        {t(perk.titleKey)}
+                      </span>
+                      <ChevronRight
+                        size={14}
+                        className="text-brand-primary transition-transform duration-200 group-open:rotate-90"
+                      />
+                    </summary>
+                    <div className="px-3 pb-3 pl-9">
+                      <p className="text-[11px] leading-relaxed text-neutral-600">
+                        {t(perk.descKey)}
+                      </p>
+                    </div>
+                  </details>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-6 pt-6 border-t border-neutral-100 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest">{t('founderApplicationFeeLabel')}</p>
+                  <span className="text-2xl font-serif font-bold text-slate-900 tracking-tighter">
+                    {price.toLocaleString()} <span className="text-sm">USDT</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  disabled={!!mySeat || soldOut}
+                  onClick={() => {
+                    if (mySeat || soldOut) return;
+                    setFounderFundPassword('');
+                    setFounderAcknowledged(false);
+                    setFounderDialogOpen(true);
+                  }}
+                  className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.12em] border shadow-lg shrink-0 transition-colors ${
+                    mySeat || soldOut
+                      ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                      : 'bg-slate-900 text-brand-primary border-slate-800 hover:bg-brand-primary hover:text-slate-900'
+                  }`}
+                >
+                  {ctaLabel}
+                </button>
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
+        );
+      })()}
     </>
   );
 
@@ -1429,14 +1844,17 @@ export default function App() {
         </div>
 
         <Card className="p-6 bg-white border-slate-100 shadow-xl">
-          {/* 顶部：左区 / 右区 */}
+          {/* 顶部：左区 / 右区（累计 + 今日） */}
           <div className="flex flex-col sm:flex-row sm:items-stretch">
             <div className="flex-1 flex flex-col items-center justify-center py-3">
               <p className="text-slate-400 text-[9px] uppercase mb-1.5 tracking-widest font-bold">
                 {t('leftZone')}
               </p>
               <span className="text-2xl font-serif font-bold text-emerald-700">
-                {user.leftVol.toLocaleString()}
+                {(binaryTeam?.leftTotalVolume ?? user.leftVol).toLocaleString()}
+              </span>
+              <span className="mt-1 text-[10px] text-emerald-600 font-bold">
+                +{(binaryTeam?.leftTodayVolume ?? 0).toLocaleString()} {t('todayShort')}
               </span>
             </div>
 
@@ -1448,7 +1866,10 @@ export default function App() {
                 {t('rightZone')}
               </p>
               <span className="text-2xl font-serif font-bold text-brand-primary">
-                {user.rightVol.toLocaleString()}
+                {(binaryTeam?.rightTotalVolume ?? user.rightVol).toLocaleString()}
+              </span>
+              <span className="mt-1 text-[10px] text-brand-primary font-bold">
+                +{(binaryTeam?.rightTodayVolume ?? 0).toLocaleString()} {t('todayShort')}
               </span>
             </div>
           </div>
@@ -1456,7 +1877,29 @@ export default function App() {
           {/* 分割线 */}
           <div className="mt-4 h-px w-full bg-slate-100" />
 
-          {/* 底部：对碰奖励 */}
+          {/* 中部：当前代理等级 + 匹配率 */}
+          <div className="mt-4 flex items-center justify-between gap-3 flex-wrap text-[10px] uppercase font-bold tracking-widest">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">{t('agentLevel')}</span>
+              <span className="text-slate-900">{binaryTeam?.agentLevel ?? '—'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">{t('matchRate')}</span>
+              <span className="text-brand-primary">
+                {((binaryTeam?.matchRate ?? 0) * 100).toFixed(2)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">{t('weakToday')}</span>
+              <span className="text-emerald-700">
+                {(binaryTeam?.weakTodayVolume ?? 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 h-px w-full bg-slate-100" />
+
+          {/* 底部：今日预计团队代理奖 */}
           <div className="mt-4 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-brand-primary/10 rounded-2xl flex items-center justify-center border border-brand-primary/20">
@@ -1474,7 +1917,7 @@ export default function App() {
 
             <div className="text-right">
               <span className="text-2xl font-black text-neutral-900 font-numeric tracking-tighter">
-                {Math.min(user.leftVol, user.rightVol) * 0.09}
+                {(binaryTeam?.estimatedTodayReward ?? 0).toFixed(2)}
               </span>
               <span className="text-[10px] text-neutral-400 ml-1 font-bold">U</span>
             </div>
@@ -1486,15 +1929,19 @@ export default function App() {
       <div className="grid grid-cols-3 gap-3">
         <Card className="p-6 flex flex-col items-center bg-white border-slate-50 shadow-sm">
            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">{t('directs')}</span>
-           <span className="text-2xl font-serif font-bold text-slate-900">12</span>
+           <span className="text-2xl font-serif font-bold text-slate-900">{binaryTeam?.directReferralCount ?? 0}</span>
         </Card>
         <Card className="p-6 flex flex-col items-center bg-white border-slate-50 shadow-sm">
            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">{t('total')}</span>
-           <span className="text-2xl font-serif font-bold text-slate-900">284</span>
+           <span className="text-2xl font-serif font-bold text-slate-900">
+             {((binaryTeam?.leftCount ?? 0) + (binaryTeam?.rightCount ?? 0)).toLocaleString()}
+           </span>
         </Card>
         <Card className="p-6 flex flex-col items-center bg-emerald-50/30 border-emerald-100 shadow-sm">
            <span className="text-[10px] text-emerald-800/60 font-bold uppercase tracking-widest mb-2">{t('bonus')}</span>
-           <span className="text-2xl font-serif font-bold text-emerald-700">10%</span>
+           <span className="text-2xl font-serif font-bold text-emerald-700">
+             {((binaryTeam?.matchRate ?? 0) * 100).toFixed(2)}%
+           </span>
         </Card>
       </div>
 
@@ -1560,7 +2007,7 @@ export default function App() {
       return x >= demoStart && x < demoEnd;
     };
 
-    const monthRows = MOCK_REWARDS.filter((r) => inDemoMonth(r.createdAt));
+    const monthRows = rewards.filter((r) => inDemoMonth(r.createdAt));
     const monthUsdt = monthRows.reduce((s, r) => s + r.usdtCredited, 0);
     const monthEcoLocked = monthRows.reduce((s, r) => s + r.ecoCreditLocked, 0);
     const monthEcoUnlockUsdt = monthRows.filter((r) => r.type === 'eco_credit_unlock').reduce((s, r) => s + r.usdtCredited, 0);
@@ -1568,7 +2015,7 @@ export default function App() {
 
     const chipTypes: Array<RewardType | 'all'> = ['all', 'static', 'referral', 'team', 'agency_fee', 'xgt_unlock'];
 
-    let rows = MOCK_REWARDS.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    let rows = rewards.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     if (rewardFilter !== 'all') rows = rows.filter((r) => r.type === rewardFilter);
     if (rewardMinerFilter) rows = rows.filter((r) => r.relatedMinerId === rewardMinerFilter);
 
@@ -1628,7 +2075,7 @@ export default function App() {
       return t('rewardStatusUnlocked');
     };
 
-    const filteredMinerMeta = rewardMinerFilter ? MOCK_MY_MINERS.find((m) => m.id === rewardMinerFilter) : null;
+    const filteredMinerMeta = rewardMinerFilter ? myMiners.find((m) => m.id === rewardMinerFilter) : null;
 
     return (
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-24">
@@ -1729,7 +2176,7 @@ export default function App() {
                   {r.relatedMinerId ? (
                     <p className="text-[9px] text-slate-400 mt-1 font-medium">
                       {(() => {
-                        const m = MOCK_MY_MINERS.find((mm) => mm.id === r.relatedMinerId);
+                        const m = myMiners.find((mm) => mm.id === r.relatedMinerId);
                         return m ? `${t('linkedMiner')}: ${m.level} · ${t(minerLevelNameKey(m.level))}` : `${t('linkedMiner')}: ${r.relatedMinerId}`;
                       })()}
                     </p>
@@ -1884,7 +2331,8 @@ export default function App() {
     const validNumber = !Number.isNaN(parsed) && parsed > 0;
     const withinBalance = validNumber && parsed <= maxAvailable + 1e-9;
     const valid = validNumber && withinBalance;
-    const fee = valid ? parsed * 0.05 : 0;
+    const effectiveFeeRate = withdrawFormAsset === 'usdt' ? goldWalletFeeRate : 0.05;
+    const fee = valid ? parsed * effectiveFeeRate : 0;
     const net = valid ? parsed - fee : 0;
 
     let errorKey: string | null = null;
@@ -1894,6 +2342,7 @@ export default function App() {
     const closeForm = () => {
       setWalletView('overview');
       setWithdrawAmountStr('');
+      setWithdrawFundPassword('');
     };
 
     const onAmountChange = (raw: string) => {
@@ -1905,22 +2354,61 @@ export default function App() {
       setWithdrawAmountStr(s);
     };
 
-    const submitWithdraw = () => {
-      if (!valid || !user) return;
+    const submitWithdraw = async () => {
+      if (!valid || !user || withdrawSubmitting) return;
+
+      // USDT 走真实 B 路线第一组接口（金矿子钱包→现货）
+      if (withdrawFormAsset === 'usdt') {
+        if (!withdrawFundPassword) {
+          window.alert(t('withdrawFundPasswordRequired') || 'Enter fund password');
+          return;
+        }
+        setWithdrawSubmitting(true);
+        try {
+          const idem = `${user.uid}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+          const resp = await submitGoldWithdraw({
+            assetType: 'USDT',
+            amount: parsed,
+            fundPassword: withdrawFundPassword,
+            idempotentKey: idem,
+          });
+          // 回填子钱包余额（扣 gross）
+          setUser((u) =>
+            !u ? u : { ...u, balanceUSDT: u.balanceUSDT - resp.grossAmount },
+          );
+          setWithdrawalList((prev) => [
+            {
+              id: `wd-${resp.orderId}`,
+              asset: 'usdt',
+              amount: resp.grossAmount,
+              fee: resp.feeAmount,
+              status: resp.status === 'completed' ? 'completed' : 'pending',
+              createdAt: new Date().toISOString(),
+            },
+            ...prev,
+          ]);
+          closeForm();
+          window.alert(t('withdrawSubmitted'));
+        } catch (e: any) {
+          const msg = e?.response?.data?.msg || e?.message || 'Withdraw failed';
+          window.alert(msg);
+        } finally {
+          setWithdrawSubmitting(false);
+        }
+        return;
+      }
+
+      // XGT 暂保持 mock（PRD 走锁仓释放路径，C 路线再实现）
       const feeAmt = parsed * 0.05;
       setUser((u) =>
         !u
           ? u
-          : {
-              ...u,
-              balanceUSDT: withdrawFormAsset === 'usdt' ? u.balanceUSDT - parsed : u.balanceUSDT,
-              xgtWithdrawable: withdrawFormAsset === 'xgt' ? u.xgtWithdrawable - parsed : u.xgtWithdrawable,
-            },
+          : { ...u, xgtWithdrawable: u.xgtWithdrawable - parsed },
       );
       setWithdrawalList((prev) => [
         {
           id: `wd-${Date.now()}`,
-          asset: withdrawFormAsset,
+          asset: 'xgt',
           amount: parsed,
           fee: feeAmt,
           status: 'pending',
@@ -2008,13 +2496,30 @@ export default function App() {
 
           <p className="text-[9px] text-slate-400 text-center">{t('withdrawFeeNote')}</p>
 
+          {withdrawFormAsset === 'usdt' ? (
+            <div>
+              <label htmlFor="withdraw-fp" className="text-[10px] text-slate-400 uppercase font-bold tracking-widest block mb-2">
+                {t('withdrawFundPasswordLabel') || 'Fund Password'}
+              </label>
+              <input
+                id="withdraw-fp"
+                type="password"
+                value={withdrawFundPassword}
+                onChange={(e) => setWithdrawFundPassword(e.target.value)}
+                autoComplete="off"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-mono tabular-nums focus:outline-none focus:border-brand-primary"
+                placeholder={t('withdrawFundPasswordPlaceholder') || 'Enter fund password'}
+              />
+            </div>
+          ) : null}
+
           <button
             type="button"
-            disabled={!valid}
+            disabled={!valid || withdrawSubmitting || (withdrawFormAsset === 'usdt' && !withdrawFundPassword)}
             onClick={submitWithdraw}
             className="w-full bg-brand-primary text-slate-900 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-brand-primary/90 transition-all active:scale-[0.98] shadow-xl shadow-brand-primary/20 disabled:opacity-40 disabled:pointer-events-none"
           >
-            {t('withdrawConfirm')}
+            {withdrawSubmitting ? '...' : t('withdrawConfirm')}
           </button>
         </Card>
       </motion.div>
@@ -2034,12 +2539,148 @@ export default function App() {
       eco_credit_unlock: <Receipt size={18} className="text-slate-700" />,
     }[ty]);
 
+  /** 锁仓状态徽章配色 */
+  const xgtLockStatusBadge = (status: ApiXgtLock['status']) => {
+    switch (status) {
+      case 'locked':
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'releasable':
+        return 'bg-amber-50 text-amber-800 border-amber-200';
+      case 'completed':
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+      case 'frozen':
+        return 'bg-rose-50 text-rose-700 border-rose-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  const renderXgtLocks = () => {
+    const total = xgtSummary?.totalBalance ?? 0;
+    const locked = xgtSummary?.balanceLocked ?? 0;
+    const unlocked = xgtSummary?.balanceUnlocked ?? 0;
+    const locks = xgtSummary?.locks ?? [];
+    const now = Date.now();
+
+    const fmtNum = (n: number) =>
+      n.toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { maximumFractionDigits: 2 });
+    const fmtDate = (iso?: string | null) =>
+      iso ? new Date(iso).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US') : '—';
+
+    const sourceLabel = (sourceType: string) =>
+      (translations[lang][`xgtLockSource_${sourceType}`] as string) || sourceType;
+    const statusLabel = (status: ApiXgtLock['status']) =>
+      (translations[lang][`xgtLockStatus_${status}`] as string) || status;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6 pb-24"
+      >
+        <div className="pt-4 space-y-2">
+          <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">{t('xgtLocksHeader')}</h2>
+          <p className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">{t('xgtLocksSubtitle')}</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="p-4 bg-white border-slate-100 shadow-sm">
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2">{t('xgtSummaryTotal')}</p>
+            <p className="text-xl font-serif font-bold text-slate-900 tracking-tight tabular-nums">{fmtNum(total)}</p>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">$XGT</span>
+          </Card>
+          <Card className="p-4 bg-white border-slate-100 shadow-sm">
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2">{t('xgtSummaryLocked')}</p>
+            <p className="text-xl font-serif font-bold text-slate-700 tracking-tight tabular-nums">{fmtNum(locked)}</p>
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">$XGT</span>
+          </Card>
+          <Card className="p-4 bg-brand-primary/5 border-brand-primary/30 shadow-sm">
+            <p className="text-[9px] text-brand-primary font-bold uppercase tracking-widest mb-2">{t('xgtSummaryUnlocked')}</p>
+            <p className="text-xl font-serif font-bold text-brand-primary tracking-tight tabular-nums">{fmtNum(unlocked)}</p>
+            <span className="text-[9px] text-brand-primary/80 font-bold uppercase tracking-widest">$XGT</span>
+          </Card>
+        </div>
+
+        {locks.length === 0 ? (
+          <Card className="p-8 bg-white border border-dashed border-slate-200 text-center space-y-2">
+            <Lock size={28} className="text-slate-300 mx-auto" />
+            <p className="text-sm font-bold text-slate-800 tracking-tight">{t('xgtNoLocksTitle')}</p>
+            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{t('xgtNoLocksDesc')}</p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {locks.map((lock) => {
+              const lockedAt = lock.lockedAt ? Date.parse(lock.lockedAt) : 0;
+              const releaseAt = lock.releaseAt ? Date.parse(lock.releaseAt) : 0;
+              const totalSpan = Math.max(releaseAt - lockedAt, 1);
+              const elapsed = Math.max(0, Math.min(now - lockedAt, totalSpan));
+              const progressPct = Math.round((elapsed / totalSpan) * 100);
+              const remainingMs = Math.max(0, releaseAt - now);
+              const remainingDays = Math.ceil(remainingMs / 86_400_000);
+
+              return (
+                <Card key={lock.id} className="p-5 bg-white border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                        {sourceLabel(lock.sourceType)}
+                      </p>
+                      <p className="text-2xl font-serif font-bold text-brand-primary tracking-tight tabular-nums mt-1">
+                        +{fmtNum(Number(lock.amountXgt ?? 0))} <span className="text-xs text-brand-primary/70 font-sans">$XGT</span>
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${xgtLockStatusBadge(lock.status)}`}
+                    >
+                      {statusLabel(lock.status)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">
+                      <span>{t('xgtLockProgress')}</span>
+                      <span>
+                        {lock.status === 'completed'
+                          ? t('xgtAlreadyReleased')
+                          : lock.status === 'releasable' || remainingMs <= 0
+                          ? t('xgtUnlockReady')
+                          : t('xgtDaysRemaining', { n: remainingDays })}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progressPct}%` }}
+                        className="h-full bg-brand-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-[10px]">
+                    <div>
+                      <p className="text-slate-400 font-bold uppercase tracking-widest">{t('xgtLockedAt')}</p>
+                      <p className="text-slate-800 font-bold mt-1">{fmtDate(lock.lockedAt)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-bold uppercase tracking-widest">{t('xgtReleaseAt')}</p>
+                      <p className="text-slate-800 font-bold mt-1">{fmtDate(lock.releaseAt)}</p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+    );
+  };
+
   const renderWallet = () => {
     if (walletView === 'rewards') return renderRewardsDetail();
     if (walletView === 'withdrawals') return renderWithdrawalHistory();
     if (walletView === 'withdrawForm') return renderWithdrawForm();
 
-    const previewRows = MOCK_REWARDS.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 3);
+    const previewRows = rewards.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 3);
 
     const rewardPreviewLabelFn = (ty: RewardType) => (translations[lang][`rewardType_${ty}`] as string) || ty;
 
@@ -2166,6 +2807,328 @@ export default function App() {
     );
   };
 
+  // === Agency center (A 路线第一组，代理三件套) ===
+
+  const openApplyDialog = (level: string) => {
+    setApplyTargetLevel(level);
+    setApplyReason('');
+    setApplyDialogOpen(true);
+  };
+
+  const handleApplySubmit = () => {
+    if (!applyTargetLevel || applySubmitting) return;
+    setApplySubmitting(true);
+    submitAgencyApply({
+      targetLevel: applyTargetLevel,
+      reasonUser: applyReason.trim() || undefined,
+    })
+      .then(() => {
+        setApplyDialogOpen(false);
+        setAgencyToast(t('agencyApplySuccess'));
+        reloadAgency();
+      })
+      .catch((e: any) => setAgencyToast(e?.message || t('agencyApplyError')))
+      .finally(() => setApplySubmitting(false));
+  };
+
+  const handleCancelApplication = (id: number) => {
+    if (!window.confirm(t('agencyCancelConfirm'))) return;
+    cancelAgencyApplication(id)
+      .then(() => {
+        setAgencyToast(t('agencyCancelSuccess'));
+        reloadAgency();
+      })
+      .catch((e: any) => setAgencyToast(e?.message || t('agencyApplyError')));
+  };
+
+  const fmtUsd = (v: number | null | undefined) =>
+    (Number(v || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const fmtPct = (v: number | null | undefined) =>
+    `${(Number(v || 0) * 100).toFixed(2)}%`;
+
+  const renderConditionRow = (
+    label: string,
+    actual: number,
+    target: number,
+    met: boolean,
+    intLike = false,
+  ) => (
+    <div className="flex items-center justify-between text-[12px] py-1.5 border-b border-slate-100 last:border-b-0">
+      <span className="text-slate-500 font-semibold">{label}</span>
+      <span className="flex items-center gap-2">
+        <span className={`font-bold tabular-nums ${met ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {intLike ? String(Number(actual) | 0) : fmtUsd(actual)}
+        </span>
+        <span className="text-slate-300">/</span>
+        <span className="text-slate-700 font-semibold tabular-nums">
+          {intLike ? String(Number(target) | 0) : fmtUsd(target)}
+        </span>
+        {met ? (
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+        ) : (
+          <X className="w-3.5 h-3.5 text-rose-400" />
+        )}
+      </span>
+    </div>
+  );
+
+  const renderAgencyCenter = () => {
+    const info = agencyInfo;
+    const hasPending = !!info?.hasPendingApplication;
+    const noUpgrade = info && info.upgradeOptions && info.upgradeOptions.length === 0;
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-24">
+        {/* Header bar with back */}
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('home')}
+            className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">{t('agencyTabTitle')}</p>
+            <h2 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">{info?.currentLevel || 'V0'}</h2>
+          </div>
+        </div>
+
+        {/* Toast */}
+        {agencyToast && (
+          <div className="px-4 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-lg">
+            {agencyToast}
+          </div>
+        )}
+
+        {/* Hero */}
+        <Card className="p-6 bg-gradient-to-br from-amber-50 to-white border-amber-100">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{t('agencyCurrentLevel')}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <h3 className="text-4xl font-serif font-black text-slate-900 tracking-tighter">
+                  {info?.currentLevel || 'V0'}
+                </h3>
+                <span
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                    info?.agentStatus === 'frozen'
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {info?.agentStatus === 'frozen' ? t('agencyStatusFrozen') : t('agencyStatusActive')}
+                </span>
+              </div>
+            </div>
+            <Trophy className="w-10 h-10 text-amber-500/70" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-[11px]">
+            <div className="px-3 py-2 rounded-xl bg-white border border-amber-100">
+              <p className="text-slate-400 font-bold uppercase tracking-widest">{t('agencyMatchRateLabel')}</p>
+              <p className="text-slate-900 font-serif font-bold text-xl mt-1">{fmtPct(info?.matchRate)}</p>
+            </div>
+            <div className="px-3 py-2 rounded-xl bg-white border border-amber-100">
+              <p className="text-slate-400 font-bold uppercase tracking-widest">{t('agencyGlobalDividend')}</p>
+              <p className="text-slate-900 font-serif font-bold text-xl mt-1">{fmtPct(info?.globalDividendRate)}</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Pending banner */}
+        {hasPending && info?.pendingApplicationId != null && (
+          <Card className="p-4 bg-amber-50/60 border-amber-200">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <History className="w-5 h-5 text-amber-600" />
+                <p className="text-[12px] font-bold text-amber-900">
+                  {t('agencyPendingHint', { level: info.pendingTargetLevel || '' })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCancelApplication(info.pendingApplicationId!)}
+                className="px-3 py-1.5 rounded-lg border border-amber-300 text-[11px] font-bold text-amber-900 hover:bg-amber-100 transition-colors"
+              >
+                {t('agencyCancelApplication')}
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* Upgrade options */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">{t('agencyUpgradeOptions')}</p>
+          {noUpgrade ? (
+            <Card className="p-6 text-center text-slate-500 text-[12px] font-semibold">
+              {t('agencyApplyMaxLevel')}
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {(info?.upgradeOptions || []).map((opt: ApiAgencyUpgradeOption) => (
+                <Card key={opt.targetLevel} className="p-5 bg-white border-neutral-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{lang === 'zh' ? opt.nameZh : opt.nameEn}</p>
+                      <h4 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">{opt.targetLevel}</h4>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{t('agencyMatchRateLabel')}</p>
+                      <p className="text-xl font-serif font-bold text-emerald-600">{fmtPct(opt.matchRate)}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    {renderConditionRow(t('agencyConditionMiner'), opt.minerValue.actual, opt.minerValue.target, opt.minerValue.met)}
+                    {renderConditionRow(t('agencyConditionDirect'), opt.directReferral.actual, opt.directReferral.target, opt.directReferral.met, true)}
+                    {renderConditionRow(t('agencyConditionLeft'), opt.leftVolume.actual, opt.leftVolume.target, opt.leftVolume.met)}
+                    {renderConditionRow(t('agencyConditionRight'), opt.rightVolume.actual, opt.rightVolume.target, opt.rightVolume.met)}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!opt.eligible || hasPending || info?.agentStatus === 'frozen'}
+                    onClick={() => openApplyDialog(opt.targetLevel)}
+                    className={`mt-4 w-full py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors ${
+                      opt.eligible && !hasPending && info?.agentStatus !== 'frozen'
+                        ? 'bg-brand-primary text-white hover:opacity-90'
+                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {opt.eligible
+                      ? `${t('agencyApplyButton')} · ${opt.targetLevel}`
+                      : t('agencyApplyDisabled')}
+                  </button>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* History */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">{t('agencyHistoryTitle')}</p>
+          {agencyApplications.length === 0 ? (
+            <Card className="p-5 text-center text-slate-400 text-[12px] font-semibold">
+              {t('agencyHistoryEmpty')}
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {agencyApplications.map((app) => (
+                <Card key={app.id} className="p-4 bg-white border-neutral-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-[12px] font-bold text-slate-700">
+                      <span className="px-2 py-0.5 rounded bg-slate-100">{app.fromLevel}</span>
+                      <ChevronRight className="w-3 h-3 text-slate-400" />
+                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900">{app.targetLevel}</span>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                        app.status === 'approved'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : app.status === 'rejected'
+                          ? 'bg-rose-100 text-rose-700'
+                          : app.status === 'cancelled'
+                          ? 'bg-slate-100 text-slate-500'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {t(`agencyAppStatus_${app.status}`)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-semibold tracking-wide">
+                    {app.createTime}
+                  </div>
+                  {app.reviewRemark && (
+                    <div className="mt-2 text-[11px] text-slate-600">
+                      <span className="text-slate-400 font-bold uppercase tracking-widest mr-1">{t('agencyReviewRemark')}:</span>
+                      {app.reviewRemark}
+                    </div>
+                  )}
+                  {app.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancelApplication(app.id)}
+                      className="mt-3 px-3 py-1 rounded border border-slate-200 text-[10px] font-bold text-slate-500 hover:bg-slate-50"
+                    >
+                      {t('agencyCancelApplication')}
+                    </button>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Apply dialog */}
+        {applyDialogOpen && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-6">
+            <Card className="w-full max-w-md p-6 bg-white">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-serif font-bold text-slate-900">
+                  {t('agencyApplyDialogTitle', { level: applyTargetLevel })}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setApplyDialogOpen(false)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                {t('agencyApplyReasonLabel')}
+              </label>
+              <textarea
+                value={applyReason}
+                onChange={(e) => setApplyReason(e.target.value)}
+                placeholder={t('agencyApplyReasonPlaceholder')}
+                maxLength={500}
+                rows={4}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-brand-primary focus:outline-none text-[13px] text-slate-800 placeholder:text-slate-300 resize-none"
+              />
+              <div className="flex items-center gap-3 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setApplyDialogOpen(false)}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-[11px] font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+                >
+                  {t('agencyApplyCancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplySubmit}
+                  disabled={applySubmitting}
+                  className="flex-1 py-3 rounded-xl bg-brand-primary text-white text-[11px] font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t('agencyApplySubmit')}
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+      </motion.div>
+    );
+  };
+
+  const handleFounderPurchase = () => {
+    if (founderSubmitting) return;
+    if (!founderAcknowledged || !founderFundPassword.trim()) return;
+    setFounderSubmitting(true);
+    const idempotentKey = `FOUNDER-${user?.uid || 'anon'}-${Date.now()}`;
+    submitFounderPurchase({
+      fundPassword: founderFundPassword,
+      idempotentKey,
+    })
+      .then((res) => {
+        setFounderDialogOpen(false);
+        setFounderFundPassword('');
+        setFounderAcknowledged(false);
+        setFounderToast(t('founderApplySuccessToast', { seatNo: res.seatNo }));
+        reloadFounder();
+      })
+      .catch((e: any) => setFounderToast(e?.message || t('founderApplyFailToast')))
+      .finally(() => setFounderSubmitting(false));
+  };
+
   return (
     <div className="min-h-screen bg-bg-main text-neutral-900 font-sans selection:bg-brand-primary/20 overflow-x-hidden">
       {/* Header */}
@@ -2206,38 +3169,117 @@ export default function App() {
           {activeTab === 'mining' && <div key="mining">{renderMining()}</div>}
           {activeTab === 'network' && <div key="network">{renderNetwork()}</div>}
           {activeTab === 'wallet' && <div key="wallet">{renderWallet()}</div>}
+          {activeTab === 'xgtLocks' && <div key="xgtLocks">{renderXgtLocks()}</div>}
+          {activeTab === 'agency' && <div key="agency">{renderAgencyCenter()}</div>}
         </AnimatePresence>
       </main>
 
       {/* Tab Navigation Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-6 h-24 flex items-center justify-between pb-6">
-        <NavItem 
-          active={activeTab === 'home'} 
-          icon={TrendingUp} 
-          label={t('home')} 
-          onClick={() => setActiveTab('home')} 
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-2xl border-t border-slate-100 px-2 h-24 flex items-center justify-between pb-6">
+        <NavItem
+          active={activeTab === 'home'}
+          icon={TrendingUp}
+          label={t('home')}
+          onClick={() => setActiveTab('home')}
         />
-        <NavItem 
-          active={activeTab === 'mining'} 
-          icon={Cpu} 
-          label={t('mines')} 
-          onClick={() => setActiveTab('mining')} 
+        <NavItem
+          active={activeTab === 'mining'}
+          icon={Cpu}
+          label={t('mines')}
+          onClick={() => setActiveTab('mining')}
         />
-        <NavItem 
-          active={activeTab === 'network'} 
-          icon={Users} 
-          label={t('market')} 
-          onClick={() => setActiveTab('network')} 
+        <NavItem
+          active={activeTab === 'network'}
+          icon={Users}
+          label={t('market')}
+          onClick={() => setActiveTab('network')}
         />
-        <NavItem 
-          active={activeTab === 'wallet'} 
-          icon={Wallet} 
-          label={t('assets')} 
-          onClick={() => setActiveTab('wallet')} 
+        <NavItem
+          active={activeTab === 'wallet'}
+          icon={Wallet}
+          label={t('assets')}
+          onClick={() => setActiveTab('wallet')}
+        />
+        <NavItem
+          active={activeTab === 'xgtLocks'}
+          icon={Lock}
+          label={t('xgtLocksTab')}
+          onClick={() => setActiveTab('xgtLocks')}
         />
       </nav>
 
 
+
+      {/* Founder purchase dialog (mines/shop) */}
+      {founderDialogOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-6">
+          <Card className="w-full max-w-md p-6 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-serif font-bold text-slate-900">
+                {t('founderApplyDialogTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setFounderDialogOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[12px] text-slate-500 mb-4">
+              {t('founderApplyDialogSubtitle', {
+                price: Number(founderInfo?.priceUsdt || 200000).toLocaleString(),
+              })}
+            </p>
+            <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+              {t('founderFundPasswordLabel')}
+            </label>
+            <input
+              type="password"
+              value={founderFundPassword}
+              onChange={(e) => setFounderFundPassword(e.target.value)}
+              placeholder={t('founderFundPasswordPlaceholder')}
+              autoComplete="off"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-brand-primary focus:outline-none text-[13px] text-slate-800 placeholder:text-slate-300"
+            />
+            <label className="mt-4 flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={founderAcknowledged}
+                onChange={(e) => setFounderAcknowledged(e.target.checked)}
+                className="mt-1"
+              />
+              <span className="text-[11px] leading-relaxed text-slate-600">
+                {t('founderApplyAcknowledge')}
+              </span>
+            </label>
+            <div className="flex items-center gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setFounderDialogOpen(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-[11px] font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+              >
+                {t('founderApplyCancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleFounderPurchase}
+                disabled={founderSubmitting || !founderAcknowledged || !founderFundPassword.trim()}
+                className="flex-1 py-3 rounded-xl bg-brand-primary text-white text-[11px] font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('founderApplyConfirm')}
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Founder toast */}
+      {founderToast && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-2xl">
+          {founderToast}
+        </div>
+      )}
 
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden bg-white">

@@ -1,0 +1,303 @@
+/**
+ * 金矿用户端接口（PRD §17）封装。
+ *
+ * 后端字段命名与本子站 interface 严格对齐，前端零字段映射；如需变更先改后端 VO。
+ */
+import { apiGet, apiPost } from './api';
+
+// === my miners (GET /api/nodes/my) ===
+export interface ApiMyMiner {
+  id: number;
+  level: string;
+  status: string;
+  price: number;
+  dailyRate: number;
+  dailyStatic: number;
+  accumulated: number;
+  healthTarget: number;
+  purchasedAt: string;
+  isCurrentActive: boolean;
+}
+
+export function fetchMyMiners(): Promise<ApiMyMiner[]> {
+  return apiGet<ApiMyMiner[]>('/api/nodes/my');
+}
+
+// === rewards/daily (POST /api/rewards/daily) ===
+export interface RewardQueryRequest {
+  rewardType?: string;
+  relatedNodeInstanceId?: number;
+  bizDateFrom?: string;
+  bizDateTo?: string;
+  pageNum?: number;
+  pageSize?: number;
+}
+
+export interface ApiRewardEntry {
+  id: number;
+  type: string;
+  createdAt: string;
+  gross: number;
+  usdtCredited: number;
+  ecoCreditLocked: number;
+  healthCounted: number;
+  relatedMinerId?: number | null;
+  status: string;
+  xgtNominalUsd?: number | null;
+  amountXgt?: number | null;
+}
+
+export interface RewardDailyResponse {
+  rows: ApiRewardEntry[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}
+
+export function fetchRewardsDaily(query: RewardQueryRequest = {}): Promise<RewardDailyResponse> {
+  return apiPost<RewardDailyResponse>('/api/rewards/daily', query);
+}
+
+// === xgt/locks/my (GET /api/xgt/locks/my) ===
+export interface ApiXgtLock {
+  id: number;
+  sourceType: string;
+  amountXgt: number;
+  amountUsdNominal?: number | null;
+  lockedAt: string;
+  releaseAt: string;
+  releasedAt?: string | null;
+  status: 'locked' | 'releasable' | 'completed' | 'frozen';
+}
+
+export interface ApiMyXgtLocks {
+  totalBalance: number;
+  balanceLocked: number;
+  balanceUnlocked: number;
+  locks: ApiXgtLock[];
+}
+
+export function fetchMyXgtLocks(): Promise<ApiMyXgtLocks> {
+  return apiGet<ApiMyXgtLocks>('/api/xgt/locks/my');
+}
+
+// === team/binary (GET /api/team/binary) ===
+export interface ApiBinaryTeam {
+  leftTodayVolume: number;
+  rightTodayVolume: number;
+  weakTodayVolume: number;
+  leftTotalVolume: number;
+  rightTotalVolume: number;
+  leftCount: number;
+  rightCount: number;
+  directReferralCount: number;
+  agentLevel: string;
+  agentStatus: string;
+  matchRate: number;
+  globalDividendRate: number;
+  teamDailyCap: number;
+  hasActiveMiner: boolean;
+  currentMinerLevel?: string | null;
+  estimatedTodayReward: number;
+  nextLevel?: string | null;
+  nextLevelMatchRate?: number | null;
+  nextLevelMinDirectReferralCount?: number | null;
+  nextLevelMinLeftVolume?: number | null;
+  nextLevelMinRightVolume?: number | null;
+  nextLevelMinActiveNodeValue?: number | null;
+  nextLevelEligible?: boolean | null;
+}
+
+export function fetchBinaryTeam(): Promise<ApiBinaryTeam> {
+  return apiGet<ApiBinaryTeam>('/api/team/binary');
+}
+
+// === agency (GET /api/agency/me) ===
+export interface ApiAgencyCondition {
+  actual: number;
+  target: number;
+  met: boolean;
+}
+
+export interface ApiAgencyUpgradeOption {
+  targetLevel: string;
+  nameEn?: string;
+  nameZh?: string;
+  matchRate: number;
+  globalDividendRate: number;
+  minerValue: ApiAgencyCondition;
+  directReferral: ApiAgencyCondition;
+  leftVolume: ApiAgencyCondition;
+  rightVolume: ApiAgencyCondition;
+  eligible: boolean;
+}
+
+export interface ApiMyAgent {
+  currentLevel: string;
+  agentStatus: 'active' | 'frozen' | string;
+  matchRate: number;
+  globalDividendRate: number;
+  activeNodeValueTotal: number;
+  directReferralAgentV1Plus: number;
+  leftVolumeTotal: number;
+  rightVolumeTotal: number;
+  hasPendingApplication: boolean;
+  pendingTargetLevel?: string | null;
+  pendingApplicationId?: number | null;
+  upgradeOptions: ApiAgencyUpgradeOption[];
+}
+
+export interface ApiAgencyApplication {
+  id: number;
+  userId: number;
+  fromLevel: string;
+  targetLevel: string;
+  reasonUser?: string | null;
+  proofUrls?: string[] | null;
+  directReferralCountSnap: number;
+  leftVolumeTotalSnap: number;
+  rightVolumeTotalSnap: number;
+  activeNodeValueSnap: number;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  reviewAdminId?: number | null;
+  reviewAt?: string | null;
+  reviewRemark?: string | null;
+  createTime: string;
+  updateTime: string;
+}
+
+export interface AgencyApplyRequest {
+  targetLevel: string;
+  reasonUser?: string;
+  proofUrls?: string[];
+}
+
+export function fetchMyAgent(): Promise<ApiMyAgent> {
+  return apiGet<ApiMyAgent>('/api/agency/me');
+}
+
+export function submitAgencyApply(body: AgencyApplyRequest): Promise<void> {
+  return apiPost<void>('/api/agency/apply', body);
+}
+
+export function fetchAgentApplications(): Promise<ApiAgencyApplication[]> {
+  return apiGet<ApiAgencyApplication[]>('/api/agency/applications/my');
+}
+
+export function cancelAgencyApplication(id: number): Promise<void> {
+  return apiPost<void>(`/api/agency/applications/${id}/cancel`);
+}
+
+// === founder (GET /api/founder/status / POST /api/founder/purchase) ===
+export interface ApiFounderSeatBrief {
+  seatNo: number;
+  status: 'available' | 'owned' | 'frozen' | string;
+  isMe: boolean;
+}
+
+export interface ApiFounderMySeat {
+  id: number;
+  seatNo: number;
+  status: string;
+  priceUsdt: number;
+  paidAt?: string | null;
+}
+
+export interface ApiFounderStatus {
+  totalSeats: number;
+  availableCount: number;
+  ownedCount: number;
+  frozenCount: number;
+  priceUsdt: number;
+  mySeat?: ApiFounderMySeat | null;
+  seats: ApiFounderSeatBrief[];
+}
+
+export interface FounderPurchaseRequest {
+  fundPassword: string;
+  idempotentKey: string;
+}
+
+export interface ApiFounderPurchaseResult {
+  seatId: number;
+  seatNo: number;
+  amountUsdt: number;
+  paidAt: string;
+  idempotent: boolean;
+}
+
+export function fetchFounderStatus(): Promise<ApiFounderStatus> {
+  return apiGet<ApiFounderStatus>('/api/founder/status');
+}
+
+export function submitFounderPurchase(body: FounderPurchaseRequest): Promise<ApiFounderPurchaseResult> {
+  return apiPost<ApiFounderPurchaseResult>('/api/founder/purchase', body);
+}
+
+// === gold wallet (B 路线第一组：金矿子钱包 + 提现) ===
+
+export interface ApiGoldWallet {
+  usdtBalance: number;
+  usdtTotalIn: number;
+  usdtTotalOut: number;
+  feeRate: number;            // 提现总费率（如 0.05）
+  founderShareRate: number;   // 创世分成（如 0.01）
+  platformFeeRate: number;    // 平台分成（feeRate - founderShareRate）
+}
+
+export function fetchMyGoldWallet(): Promise<ApiGoldWallet> {
+  return apiGet<ApiGoldWallet>('/api/gold/wallet');
+}
+
+export interface GoldWithdrawRequest {
+  assetType?: string;     // 仅 USDT，留 undefined 后端默认 USDT
+  amount: number;
+  fundPassword: string;
+  idempotentKey: string;
+}
+
+export interface ApiGoldWithdrawResult {
+  orderId: number;
+  assetType: string;
+  grossAmount: number;
+  feeAmount: number;
+  founderShareAmount: number;
+  platformFeeAmount: number;
+  netAmount: number;
+  feeRate: number;
+  founderShareRate: number;
+  status: 'pending' | 'completed' | 'cancelled' | 'failed';
+  completedAt?: string;
+  idempotent: boolean;
+}
+
+export function submitGoldWithdraw(body: GoldWithdrawRequest): Promise<ApiGoldWithdrawResult> {
+  return apiPost<ApiGoldWithdrawResult>('/api/gold/withdraw', body);
+}
+
+export interface ApiGoldWithdrawOrder {
+  id: number;
+  userId: number;
+  assetType: string;
+  grossAmount: number;
+  feeAmount: number;
+  founderShareAmount: number;
+  platformFeeAmount: number;
+  netAmount: number;
+  feeRateSnap: number;
+  founderShareRateSnap: number;
+  status: string;
+  completedAt?: string | null;
+  createTime: string;
+}
+
+export interface GoldWithdrawalsPage {
+  records: ApiGoldWithdrawOrder[];
+  total: number;
+  current: number;
+  size: number;
+}
+
+export function fetchMyGoldWithdrawals(pageNum = 1, pageSize = 20): Promise<GoldWithdrawalsPage> {
+  return apiGet<GoldWithdrawalsPage>(`/api/gold/withdrawals?pageNum=${pageNum}&pageSize=${pageSize}`);
+}
