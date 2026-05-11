@@ -39,6 +39,9 @@ import {
   cancelAgencyApplication,
   fetchFounderStatus,
   submitFounderPurchase,
+  fetchMyEcoCredit,
+  submitEcoCreditUnlock,
+  fetchMyGoldWithdrawals,
   ApiMyMiner,
   ApiRewardEntry,
   ApiXgtLock,
@@ -47,6 +50,8 @@ import {
   ApiAgencyApplication,
   ApiAgencyUpgradeOption,
   ApiFounderStatus,
+  ApiMyEcoCredit,
+  ApiEcoCreditEntry,
 } from './utils/goldApi';
 import goldTrustVisualUrl from './public/image/gold.png';
 import aiComputeVisualUrl from './public/image/gold2.png';
@@ -313,6 +318,46 @@ const translations: Record<string, any> = {
     founderApplyCancel: "Cancel",
     founderApplySuccessToast: "Purchase successful · seat #{seatNo}",
     founderApplyFailToast: "Purchase failed",
+
+    // Common (used by ecosystem credit dialog)
+    cancel: "Cancel",
+    confirm: "Confirm",
+    submitting: "Submitting...",
+    loading: "Loading...",
+
+    // Ecosystem credit (C-2)
+    ecoEntryTitle: "Ecosystem Credit",
+    ecoEntrySubtitle: "Locked from 30% of referral / team rewards",
+    ecoCenterTitle: "Credit Center",
+    ecoCenterSubtitle: "Unlock to gold sub-wallet (USDT 1:1)",
+    ecoBalanceLocked: "Total Locked",
+    ecoBalanceAvailable: "Available",
+    ecoInProgressNote: "{n} credit pending in active unlock requests",
+    ecoUnlockCta: "Apply to Unlock",
+    ecoNoEntriesTitle: "No unlock history yet",
+    ecoNoEntriesDesc: "Earn referral / team rewards first — 30% lands here as credit.",
+    ecoTradeVolume: "Trade volume progress",
+    ecoXgtLockReleaseAt: "Release at",
+    ecoXgtLockStatus: "XGT lock status",
+    ecoUnlockTypeTrade: "3× trade volume",
+    ecoUnlockTypeXgt: "Lock $XGT 30 days",
+    ecoEntryStatus_in_progress: "In progress",
+    ecoEntryStatus_completed: "Completed",
+    ecoEntryStatus_cancelled: "Cancelled",
+    ecoStartedAt: "Started",
+    ecoCompletedAt: "Completed at",
+    ecoUnlockDialogTitle: "Unlock Ecosystem Credit",
+    ecoUnlockDialogSubtitle: "Available: {available} credit",
+    ecoUnlockTypeLabel: "Choose unlock path",
+    ecoUnlockTradeHint: "Auto-completes once your cumulative trade volume (spot USDT + perpetual) since this submission reaches amount × 3.",
+    ecoUnlockXgtHint: "Locks the same amount of $XGT for 30 days. Auto-completes when the lock releases.",
+    ecoUnlockAmountLabel: "Credit amount",
+    ecoUnlockAmountPlaceholder: "Enter credit amount",
+    ecoUnlockInvalidAmount: "Please enter a valid credit amount",
+    ecoUnlockInsufficient: "Amount exceeds available credit",
+    ecoUnlockXgtInsufficient: "Available $XGT is insufficient to lock",
+    ecoUnlockSubmitted: "Unlock request submitted",
+    ecoUnlockFailed: "Failed to submit unlock request",
   },
   zh: {
     home: "首页",
@@ -570,6 +615,46 @@ const translations: Record<string, any> = {
     founderApplyCancel: "取消",
     founderApplySuccessToast: "购买成功 · 第 {seatNo} 席",
     founderApplyFailToast: "购买失败",
+
+    // 通用（生态额度弹窗复用）
+    cancel: "取消",
+    confirm: "确认",
+    submitting: "提交中...",
+    loading: "加载中...",
+
+    // 生态额度（C-2）
+    ecoEntryTitle: "生态额度",
+    ecoEntrySubtitle: "来源：直推 / 团队奖的 30%",
+    ecoCenterTitle: "生态额度中心",
+    ecoCenterSubtitle: "解锁后按 1:1 入金矿子钱包 USDT",
+    ecoBalanceLocked: "累计锁定",
+    ecoBalanceAvailable: "可申请解锁",
+    ecoInProgressNote: "已有 {n} credit 在解锁中（不可重复申请）",
+    ecoUnlockCta: "申请解锁",
+    ecoNoEntriesTitle: "暂无解锁记录",
+    ecoNoEntriesDesc: "先通过直推 / 团队奖积累额度，30% 会落到生态额度。",
+    ecoTradeVolume: "交易量进度",
+    ecoXgtLockReleaseAt: "释放时间",
+    ecoXgtLockStatus: "XGT 锁仓状态",
+    ecoUnlockTypeTrade: "3 倍交易量",
+    ecoUnlockTypeXgt: "锁 $XGT 30 天",
+    ecoEntryStatus_in_progress: "进行中",
+    ecoEntryStatus_completed: "已完成",
+    ecoEntryStatus_cancelled: "已取消",
+    ecoStartedAt: "开始时间",
+    ecoCompletedAt: "完成时间",
+    ecoUnlockDialogTitle: "申请解锁生态额度",
+    ecoUnlockDialogSubtitle: "可申请：{available} credit",
+    ecoUnlockTypeLabel: "选择解锁路径",
+    ecoUnlockTradeHint: "提交后累计交易量（现货 USDT + 合约）≥ amount × 3 自动完成。",
+    ecoUnlockXgtHint: "锁定同等数量 $XGT 30 天，到期自动完成解锁。",
+    ecoUnlockAmountLabel: "credit 数量",
+    ecoUnlockAmountPlaceholder: "请输入解锁数量",
+    ecoUnlockInvalidAmount: "请输入有效的解锁数量",
+    ecoUnlockInsufficient: "数量超过可申请额度",
+    ecoUnlockXgtInsufficient: "可用 $XGT 余额不足，无法锁仓",
+    ecoUnlockSubmitted: "已提交解锁申请",
+    ecoUnlockFailed: "解锁申请提交失败",
   }
 };
 
@@ -597,10 +682,14 @@ const NODES: NodeCatalogItem[] = [
 ];
 
 const GENESIS_NODE = {
-  /** Founding partner application / seat fee (PRD-aligned with top-tier magnitude) */
-  price: 600_000,
+  /**
+   * PRD §12 创世合伙人 49 席：200,000 USDT / 席。
+   * price / remaining 仅作为后端 fetchFounderStatus 失败时的 fallback；
+   * 正常路径下 founderInfo.priceUsdt / .availableCount 接管显示。
+   */
+  price: 200_000,
   spots: 49,
-  remaining: 12,
+  remaining: 49,
   perks: [
     { titleKey: 'founderPerk1Title', descKey: 'founderPerk1Desc' },
     { titleKey: 'founderPerk2Title', descKey: 'founderPerk2Desc' },
@@ -922,15 +1011,8 @@ interface WithdrawalEntry {
   remark?: string;
 }
 
-/** Demo withdrawals — swap for GET /wallet/withdrawals */
-const MOCK_WITHDRAWALS: WithdrawalEntry[] = [
-  { id: 'wd-u1', asset: 'usdt', amount: 500, fee: 25, status: 'completed', createdAt: '2026-05-04T10:22:00.000Z' },
-  { id: 'wd-u2', asset: 'usdt', amount: 120, fee: 6, status: 'pending', createdAt: '2026-05-06T08:15:00.000Z' },
-  { id: 'wd-u3', asset: 'usdt', amount: 88.5, fee: 4.43, status: 'completed', createdAt: '2026-05-01T14:00:00.000Z' },
-  { id: 'wd-x1', asset: 'xgt', amount: 200, fee: 10, status: 'completed', createdAt: '2026-05-05T16:40:00.000Z' },
-  { id: 'wd-x2', asset: 'xgt', amount: 50, status: 'pending', createdAt: '2026-05-06T12:00:00.000Z', remark: 'On-chain' },
-  { id: 'wd-x3', asset: 'xgt', amount: 320, fee: 16, status: 'completed', createdAt: '2026-04-28T09:30:00.000Z' },
-];
+/** Withdrawals 来自 GET /api/gold/withdrawals（仅 USDT，XGT 不在 PRD §17 范围）。 */
+const MOCK_WITHDRAWALS: WithdrawalEntry[] = [];
 
 /**
  * 后端 → 前端字段适配（保持本地 interface 形状不变，避免大面积改 JSX）
@@ -1080,7 +1162,7 @@ export default function App() {
   const [user, setUser] = useState<UserState | null>(null);
   const [lang, setLang] = useState<'en' | 'zh'>('en');
   const [mineSubView, setMineSubView] = useState<'myMiners' | 'shop'>('myMiners');
-  const [walletView, setWalletView] = useState<'overview' | 'rewards' | 'withdrawals' | 'withdrawForm'>('overview');
+  const [walletView, setWalletView] = useState<'overview' | 'rewards' | 'withdrawals' | 'withdrawForm' | 'xgtLocks' | 'credit'>('overview');
   const [withdrawalAssetTab, setWithdrawalAssetTab] = useState<WithdrawalAsset>('usdt');
   const [withdrawFormAsset, setWithdrawFormAsset] = useState<WithdrawalAsset>('usdt');
   const [withdrawAmountStr, setWithdrawAmountStr] = useState('');
@@ -1097,6 +1179,13 @@ export default function App() {
     balanceUnlocked: number;
     locks: ApiXgtLock[];
   } | null>(null);
+  const [ecoCredit, setEcoCredit] = useState<ApiMyEcoCredit | null>(null);
+  const [ecoLoading, setEcoLoading] = useState(false);
+  const [ecoUnlockDialogOpen, setEcoUnlockDialogOpen] = useState(false);
+  const [ecoUnlockAmountStr, setEcoUnlockAmountStr] = useState('');
+  const [ecoUnlockType, setEcoUnlockType] = useState<'trade_volume' | 'xgt_lock'>('trade_volume');
+  const [ecoUnlockSubmitting, setEcoUnlockSubmitting] = useState(false);
+  const [ecoToast, setEcoToast] = useState<string | null>(null);
   const [binaryTeam, setBinaryTeam] = useState<ApiBinaryTeam | null>(null);
 
   // 金矿子钱包费率（B 路线第一组，初始化时拉一次）
@@ -1148,6 +1237,85 @@ export default function App() {
       })
       .finally(() => setFounderLoading(false));
   }, []);
+
+  // 提现历史 USDT 接真（C-3）：拉后端列表替换 mock USDT 行，XGT 保留 mock
+  useEffect(() => {
+    if (activeTab !== 'wallet') return;
+    if (walletView !== 'overview' && walletView !== 'withdrawals') return;
+    let cancelled = false;
+    fetchMyGoldWithdrawals(1, 50)
+      .then((page) => {
+        if (cancelled) return;
+        const adapted: WithdrawalEntry[] = (page?.records || []).map((o) => ({
+          id: 'gw-' + o.id,
+          asset: 'usdt',
+          amount: Number(o.grossAmount ?? 0),
+          fee: Number(o.feeAmount ?? 0),
+          status: o.status === 'completed' ? 'completed' : 'pending',
+          createdAt: o.completedAt || o.createTime,
+        }));
+        setWithdrawalList((prev) => {
+          const xgtRows = prev.filter((w) => w.asset === 'xgt');
+          return [...adapted, ...xgtRows];
+        });
+      })
+      .catch((e) => console.warn('[gold] fetchMyGoldWithdrawals failed', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, walletView]);
+
+  // ecosystem_credit（C-2，lazy on walletView='credit'）
+  const reloadEcoCredit = React.useCallback(() => {
+    setEcoLoading(true);
+    fetchMyEcoCredit()
+      .then(setEcoCredit)
+      .catch((e) => {
+        console.warn('[gold] fetchMyEcoCredit failed', e);
+        setEcoCredit(null);
+      })
+      .finally(() => setEcoLoading(false));
+  }, []);
+
+  useEffect(() => {
+    // 进资产 tab 时拉一次（用于 overview 卡显示 balanceLocked），切到 credit 子页也拉
+    if (activeTab === 'wallet') {
+      reloadEcoCredit();
+    }
+  }, [activeTab, walletView, reloadEcoCredit]);
+
+  const handleEcoUnlockSubmit = async () => {
+    const amount = Number(ecoUnlockAmountStr);
+    if (!ecoCredit || !Number.isFinite(amount) || amount <= 0) {
+      setEcoToast(t('ecoUnlockInvalidAmount'));
+      return;
+    }
+    if (amount > ecoCredit.balanceAvailable) {
+      setEcoToast(t('ecoUnlockInsufficient'));
+      return;
+    }
+    if (ecoUnlockType === 'xgt_lock' && amount > (user?.xgtWithdrawable ?? 0)) {
+      setEcoToast(t('ecoUnlockXgtInsufficient'));
+      return;
+    }
+    setEcoUnlockSubmitting(true);
+    try {
+      await submitEcoCreditUnlock({
+        amountCredit: amount,
+        unlockType: ecoUnlockType,
+        idempotentKey: `eco-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+      });
+      setEcoToast(t('ecoUnlockSubmitted'));
+      setEcoUnlockDialogOpen(false);
+      setEcoUnlockAmountStr('');
+      reloadEcoCredit();
+    } catch (e: any) {
+      console.warn('[gold] submitEcoCreditUnlock failed', e);
+      setEcoToast(e?.msg || e?.message || t('ecoUnlockFailed'));
+    } finally {
+      setEcoUnlockSubmitting(false);
+    }
+  };
 
   const handleReturnToCex = () => {
     // Prefer returning to the container (CEX) via browser history.
@@ -1208,7 +1376,17 @@ export default function App() {
     fetchMyMiners()
       .then((list) => {
         if (cancelled) return;
-        setMyMiners((list || []).map(adaptMyMiner));
+        const adapted = (list || []).map(adaptMyMiner);
+        setMyMiners(adapted);
+        // 用矿机聚合覆盖 mock 算力 / 总收益 / 健康出局额度（用户聚合制）
+        const actives = adapted.filter((m) => m.status === 'active');
+        const power = actives.reduce((s, m) => s + Number(m.price || 0), 0);
+        const totalEarned = adapted.reduce((s, m) => s + Number(m.accumulated || 0), 0);
+        const maxActivePrice = actives.reduce((s, m) => Math.max(s, Number(m.price || 0)), 0);
+        const healthLimit = maxActivePrice * 3;
+        setUser((prev) =>
+          prev ? { ...prev, power, totalEarned, healthLimit } : prev,
+        );
       })
       .catch((e) => console.warn('[gold] fetchMyMiners failed', e));
 
@@ -1223,7 +1401,7 @@ export default function App() {
       .then((resp) => {
         if (cancelled) return;
         setXgtSummary(resp || null);
-        // 用真实 XGT 余额覆盖 mock user 中的对应字段
+        // 用真实 XGT 余额覆盖 mock user 中的对应字段（资产 tab 显示 + 详情子页）
         if (resp) {
           setUser((prev) =>
             prev
@@ -1306,6 +1484,12 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [founderToast]);
 
+  useEffect(() => {
+    if (!ecoToast) return;
+    const id = window.setTimeout(() => setEcoToast(null), 2600);
+    return () => window.clearTimeout(id);
+  }, [ecoToast]);
+
   if (!user) return <div className="min-h-screen bg-bg-main flex items-center justify-center text-brand-primary font-black italic tracking-tighter uppercase">{t('initializing')}</div>;
 
   const renderHome = () => (
@@ -1372,13 +1556,21 @@ export default function App() {
             <p className="text-amber-800/60 text-[9px] uppercase font-bold mb-2 tracking-widest">{t('healthyLimit')}</p>
             <div className="flex items-center gap-2">
               <ShieldCheck size={16} className="text-brand-primary" />
-              <span className="text-2xl font-serif font-bold text-slate-900 tracking-tight">{(user.totalEarned / (user.power * 3) * 100).toFixed(0)}%</span>
+              <span className="text-2xl font-serif font-bold text-slate-900 tracking-tight">
+                {user.healthLimit > 0
+                  ? Math.min(100, (user.totalEarned / user.healthLimit) * 100).toFixed(0)
+                  : '0'}%
+              </span>
             </div>
             <div className="w-full bg-slate-100 h-1 rounded-full mt-4 overflow-hidden">
-               <motion.div 
+               <motion.div
                  initial={{ width: 0 }}
-                 animate={{ width: `${(user.totalEarned / (user.power * 3) * 100)}%` }}
-                 className="bg-brand-primary h-full shadow-[0_0_8px_rgba(179,139,77,0.3)]" 
+                 animate={{
+                   width: `${user.healthLimit > 0
+                     ? Math.min(100, (user.totalEarned / user.healthLimit) * 100)
+                     : 0}%`
+                 }}
+                 className="bg-brand-primary h-full shadow-[0_0_8px_rgba(179,139,77,0.3)]"
                />
             </div>
           </Card>
@@ -2004,14 +2196,17 @@ export default function App() {
   );
 
   const renderRewardsDetail = () => {
-    const demoStart = Date.parse('2026-05-01T00:00:00.000Z');
-    const demoEnd = Date.parse('2026-06-01T00:00:00.000Z');
-    const inDemoMonth = (iso: string) => {
+    // 当前月（本地时区）汇总
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+    const inCurrentMonth = (iso: string) => {
       const x = Date.parse(iso);
-      return x >= demoStart && x < demoEnd;
+      return x >= monthStart && x < monthEnd;
     };
+    const monthLabel = now.toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'long' });
 
-    const monthRows = rewards.filter((r) => inDemoMonth(r.createdAt));
+    const monthRows = rewards.filter((r) => inCurrentMonth(r.createdAt));
     const monthUsdt = monthRows.reduce((s, r) => s + r.usdtCredited, 0);
     const monthEcoLocked = monthRows.reduce((s, r) => s + r.ecoCreditLocked, 0);
     const monthEcoUnlockUsdt = monthRows.filter((r) => r.type === 'eco_credit_unlock').reduce((s, r) => s + r.usdtCredited, 0);
@@ -2223,7 +2418,8 @@ export default function App() {
   };
 
   const renderWithdrawalHistory = () => {
-    const rows = withdrawalList.filter((w) => w.asset === withdrawalAssetTab).sort(
+    // 仅 USDT（XGT 提现不在 PRD §17 范围）
+    const rows = withdrawalList.filter((w) => w.asset === 'usdt').sort(
       (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
     );
 
@@ -2261,23 +2457,6 @@ export default function App() {
             {t('backToAssets')}
           </button>
           <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.3em]">{t('withdrawalHistory')}</span>
-        </div>
-
-        <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80">
-          {(['usdt', 'xgt'] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setWithdrawalAssetTab(tab)}
-              className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${
-                withdrawalAssetTab === tab
-                  ? 'bg-white text-slate-900 shadow-md border border-slate-200'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {tab === 'usdt' ? t('withdrawalTabUsdt') : t('withdrawalTabXgt')}
-            </button>
-          ))}
         </div>
 
         <div className="space-y-4">
@@ -2402,26 +2581,7 @@ export default function App() {
         return;
       }
 
-      // XGT 暂保持 mock（PRD 走锁仓释放路径，C 路线再实现）
-      const feeAmt = parsed * 0.05;
-      setUser((u) =>
-        !u
-          ? u
-          : { ...u, xgtWithdrawable: u.xgtWithdrawable - parsed },
-      );
-      setWithdrawalList((prev) => [
-        {
-          id: `wd-${Date.now()}`,
-          asset: 'xgt',
-          amount: parsed,
-          fee: feeAmt,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-      closeForm();
-      window.alert(t('withdrawSubmitted'));
+      // XGT 提现不在 PRD §17 范围（站内积分非链上）；如未来开放，再补 POST /api/xgt/withdraw
     };
 
     const title = withdrawFormAsset === 'usdt' ? t('withdrawCtaUsdt') : t('withdrawCtaXgt');
@@ -2544,25 +2704,10 @@ export default function App() {
     }[ty]);
 
   /** 锁仓状态徽章配色 */
-  const xgtLockStatusBadge = (status: ApiXgtLock['status']) => {
-    switch (status) {
-      case 'locked':
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-      case 'releasable':
-        return 'bg-amber-50 text-amber-800 border-amber-200';
-      case 'completed':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-200';
-      case 'frozen':
-        return 'bg-rose-50 text-rose-700 border-rose-200';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
-
-  const renderXgtLocks = () => {
-    const total = xgtSummary?.totalBalance ?? 0;
-    const locked = xgtSummary?.balanceLocked ?? 0;
-    const unlocked = xgtSummary?.balanceUnlocked ?? 0;
+  const renderXgtLocksDetail = () => {
+    const total = xgtSummary?.totalBalance ?? user?.xgtLocked ?? 0;
+    const locked = xgtSummary?.balanceLocked ?? user?.xgtLocked ?? 0;
+    const unlocked = xgtSummary?.balanceUnlocked ?? user?.xgtWithdrawable ?? 0;
     const locks = xgtSummary?.locks ?? [];
     const now = Date.now();
 
@@ -2570,21 +2715,34 @@ export default function App() {
       n.toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { maximumFractionDigits: 2 });
     const fmtDate = (iso?: string | null) =>
       iso ? new Date(iso).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US') : '—';
-
     const sourceLabel = (sourceType: string) =>
       (translations[lang][`xgtLockSource_${sourceType}`] as string) || sourceType;
     const statusLabel = (status: ApiXgtLock['status']) =>
       (translations[lang][`xgtLockStatus_${status}`] as string) || status;
+    const statusBadge = (status: ApiXgtLock['status']) => {
+      switch (status) {
+        case 'releasable': return 'bg-amber-50 text-amber-800 border-amber-200';
+        case 'completed':  return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+        case 'frozen':     return 'bg-rose-50 text-rose-700 border-rose-200';
+        default:           return 'bg-slate-100 text-slate-700 border-slate-200';
+      }
+    };
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-6 pb-24"
-      >
-        <div className="pt-4 space-y-2">
-          <h2 className="text-3xl font-serif font-bold text-slate-900 tracking-tight">{t('xgtLocksHeader')}</h2>
-          <p className="text-slate-400 text-[11px] font-medium tracking-wide uppercase">{t('xgtLocksSubtitle')}</p>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-24">
+        <div className="pt-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setWalletView('overview')}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100"
+            aria-label="back"
+          >
+            <ChevronRight className="w-5 h-5 rotate-180" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">{t('xgtLocksHeader')}</h2>
+            <p className="text-slate-400 text-[10px] font-medium tracking-wide uppercase">{t('xgtLocksSubtitle')}</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
@@ -2621,7 +2779,6 @@ export default function App() {
               const progressPct = Math.round((elapsed / totalSpan) * 100);
               const remainingMs = Math.max(0, releaseAt - now);
               const remainingDays = Math.ceil(remainingMs / 86_400_000);
-
               return (
                 <Card key={lock.id} className="p-5 bg-white border-slate-100 shadow-sm space-y-4">
                   <div className="flex items-start justify-between gap-3">
@@ -2633,13 +2790,10 @@ export default function App() {
                         +{fmtNum(Number(lock.amountXgt ?? 0))} <span className="text-xs text-brand-primary/70 font-sans">$XGT</span>
                       </p>
                     </div>
-                    <span
-                      className={`shrink-0 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${xgtLockStatusBadge(lock.status)}`}
-                    >
+                    <span className={`shrink-0 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${statusBadge(lock.status)}`}>
                       {statusLabel(lock.status)}
                     </span>
                   </div>
-
                   <div>
                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">
                       <span>{t('xgtLockProgress')}</span>
@@ -2659,7 +2813,6 @@ export default function App() {
                       />
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-3 text-[10px]">
                     <div>
                       <p className="text-slate-400 font-bold uppercase tracking-widest">{t('xgtLockedAt')}</p>
@@ -2679,10 +2832,160 @@ export default function App() {
     );
   };
 
+  const renderEcosystemCreditDetail = () => {
+    const c = ecoCredit;
+    const fmtNum = (n: number | null | undefined) =>
+      (n ?? 0).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { maximumFractionDigits: 4 });
+    const fmtDate = (iso?: string | null) =>
+      iso ? new Date(iso).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US') : '—';
+
+    const entryBadge = (status: string) => {
+      switch (status) {
+        case 'completed':  return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+        case 'cancelled':  return 'bg-rose-50 text-rose-700 border-rose-200';
+        default:           return 'bg-amber-50 text-amber-800 border-amber-200';
+      }
+    };
+
+    const renderEntryProgress = (e: ApiEcoCreditEntry) => {
+      if (e.unlockType === 'trade_volume') {
+        const required = Number(e.tradeVolumeRequired ?? 0);
+        const done = Number(e.tradeVolumeCompleted ?? 0);
+        const pct = required > 0 ? Math.min(100, Math.round((done / required) * 100)) : 0;
+        return (
+          <div>
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] mb-2">
+              <span>{t('ecoTradeVolume')}</span>
+              <span className="tabular-nums">{fmtNum(done)} / {fmtNum(required)} U</span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} className="h-full bg-brand-primary" />
+            </div>
+          </div>
+        );
+      }
+      // xgt_lock
+      const status = e.xgtLockStatus || '';
+      return (
+        <div className="text-[10px] text-slate-500 font-medium space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="font-bold uppercase tracking-widest">{t('ecoXgtLockReleaseAt')}</span>
+            <span className="text-slate-800 font-bold">{fmtDate(e.xgtLockReleaseAt)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-bold uppercase tracking-widest">{t('ecoXgtLockStatus')}</span>
+            <span className="text-slate-800 font-bold">{status || '—'}</span>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-24">
+        <div className="pt-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setWalletView('overview')}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100"
+            aria-label="back"
+          >
+            <ChevronRight className="w-5 h-5 rotate-180" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-serif font-bold text-slate-900 tracking-tight">{t('ecoCenterTitle')}</h2>
+            <p className="text-slate-400 text-[10px] font-medium tracking-wide uppercase">{t('ecoCenterSubtitle')}</p>
+          </div>
+        </div>
+
+        {ecoLoading && !c ? (
+          <Card className="p-8 bg-white border border-slate-100 shadow-sm text-center text-[12px] text-slate-400">
+            {t('loading')}
+          </Card>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="p-4 bg-white border-slate-100 shadow-sm">
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2">{t('ecoBalanceLocked')}</p>
+                <p className="text-xl font-serif font-bold text-slate-700 tracking-tight tabular-nums">{fmtNum(c?.balanceLocked ?? 0)}</p>
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">CREDIT</span>
+              </Card>
+              <Card className="p-4 bg-brand-primary/5 border-brand-primary/30 shadow-sm">
+                <p className="text-[9px] text-brand-primary font-bold uppercase tracking-widest mb-2">{t('ecoBalanceAvailable')}</p>
+                <p className="text-xl font-serif font-bold text-brand-primary tracking-tight tabular-nums">{fmtNum(c?.balanceAvailable ?? 0)}</p>
+                <span className="text-[9px] text-brand-primary/80 font-bold uppercase tracking-widest">CREDIT</span>
+              </Card>
+            </div>
+            {c && c.balanceInProgress > 0 && (
+              <Card className="p-4 bg-amber-50/50 border-amber-200 shadow-sm">
+                <p className="text-[10px] font-bold text-amber-900">
+                  {t('ecoInProgressNote', { n: fmtNum(c.balanceInProgress) })}
+                </p>
+              </Card>
+            )}
+
+            <button
+              type="button"
+              disabled={!c || c.balanceAvailable <= 0}
+              onClick={() => {
+                setEcoUnlockAmountStr('');
+                setEcoUnlockType('trade_volume');
+                setEcoUnlockDialogOpen(true);
+              }}
+              className="w-full bg-brand-primary text-slate-900 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-brand-primary/90 transition-all active:scale-95 shadow-xl shadow-brand-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {t('ecoUnlockCta')}
+            </button>
+
+            {(!c || c.entries.length === 0) ? (
+              <Card className="p-8 bg-white border border-dashed border-slate-200 text-center space-y-2">
+                <Lock size={28} className="text-slate-300 mx-auto" />
+                <p className="text-sm font-bold text-slate-800 tracking-tight">{t('ecoNoEntriesTitle')}</p>
+                <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{t('ecoNoEntriesDesc')}</p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {c.entries.map((e) => (
+                  <Card key={e.id} className="p-5 bg-white border-slate-100 shadow-sm space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                          {e.unlockType === 'xgt_lock' ? t('ecoUnlockTypeXgt') : t('ecoUnlockTypeTrade')}
+                        </p>
+                        <p className="text-2xl font-serif font-bold text-brand-primary tracking-tight tabular-nums mt-1">
+                          +{fmtNum(e.amountCredit)} <span className="text-xs text-brand-primary/70 font-sans">CREDIT</span>
+                        </p>
+                      </div>
+                      <span className={`shrink-0 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${entryBadge(e.status)}`}>
+                        {t(`ecoEntryStatus_${e.status}`) || e.status}
+                      </span>
+                    </div>
+                    {renderEntryProgress(e)}
+                    <div className="grid grid-cols-2 gap-3 text-[10px]">
+                      <div>
+                        <p className="text-slate-400 font-bold uppercase tracking-widest">{t('ecoStartedAt')}</p>
+                        <p className="text-slate-800 font-bold mt-1">{fmtDate(e.startedAt)}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 font-bold uppercase tracking-widest">{t('ecoCompletedAt')}</p>
+                        <p className="text-slate-800 font-bold mt-1">{fmtDate(e.completedAt)}</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </motion.div>
+    );
+  };
+
   const renderWallet = () => {
     if (walletView === 'rewards') return renderRewardsDetail();
     if (walletView === 'withdrawals') return renderWithdrawalHistory();
     if (walletView === 'withdrawForm') return renderWithdrawForm();
+    if (walletView === 'xgtLocks') return renderXgtLocksDetail();
+    if (walletView === 'credit') return renderEcosystemCreditDetail();
 
     const previewRows = rewards.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 3);
 
@@ -2720,43 +3023,37 @@ export default function App() {
               </div>
               <span className="text-[10px] font-sans font-bold text-brand-primary/80 uppercase tracking-widest shrink-0 pb-1">$XGT</span>
             </div>
-            <div className="flex items-end justify-between gap-4 pt-6">
+            <button
+              type="button"
+              onClick={() => setWalletView('xgtLocks')}
+              className="flex items-end justify-between gap-4 pt-6 w-full text-left hover:bg-slate-50/60 -mx-2 px-2 rounded-lg transition-colors"
+            >
               <div className="min-w-0">
-                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mb-2">{t('lockedXgt')}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-[0.2em] mb-2 flex items-center gap-1.5">
+                  {t('lockedXgt')}
+                  <ChevronRight className="w-3 h-3 text-slate-400" />
+                </p>
                 <p className="text-3xl font-serif font-bold text-slate-700 tracking-tight tabular-nums">
                   {user.xgtLocked.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </p>
               </div>
               <span className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-widest shrink-0 pb-1">$XGT</span>
-            </div>
+            </button>
           </div>
         </Card>
 
         <Card className="p-8 border-slate-100 bg-white shadow-xl shadow-slate-200/20 space-y-4">
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setWithdrawFormAsset('usdt');
-                setWithdrawAmountStr('');
-                setWalletView('withdrawForm');
-              }}
-              className="w-full bg-slate-50 text-slate-900 border border-slate-200 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
-            >
-              {t('withdrawCtaUsdt')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setWithdrawFormAsset('xgt');
-                setWithdrawAmountStr('');
-                setWalletView('withdrawForm');
-              }}
-              className="w-full bg-brand-primary text-slate-900 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-brand-primary/90 transition-all active:scale-95 shadow-xl shadow-brand-primary/20"
-            >
-              {t('withdrawCtaXgt')}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setWithdrawFormAsset('usdt');
+              setWithdrawAmountStr('');
+              setWalletView('withdrawForm');
+            }}
+            className="w-full bg-brand-primary text-slate-900 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-brand-primary/90 transition-all active:scale-95 shadow-xl shadow-brand-primary/20"
+          >
+            {t('withdrawCtaUsdt')}
+          </button>
           <p className="text-center text-[8px] text-slate-400">{t('withdrawFeeNote')}</p>
           <button
             type="button"
@@ -2766,6 +3063,26 @@ export default function App() {
             {t('withdrawalHistory')} →
           </button>
         </Card>
+
+        <button
+          type="button"
+          onClick={() => setWalletView('credit')}
+          className="w-full text-left bg-white border border-slate-200 rounded-2xl px-6 py-5 hover:bg-slate-50/60 transition-colors shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mb-1 flex items-center gap-1.5">
+                {t('ecoEntryTitle')}
+                <ChevronRight className="w-3 h-3 text-slate-400" />
+              </p>
+              <p className="text-2xl font-serif font-bold text-slate-900 tracking-tight tabular-nums">
+                {(ecoCredit?.balanceLocked ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">{t('ecoEntrySubtitle')}</p>
+            </div>
+            <span className="text-[10px] font-sans font-bold text-slate-400 uppercase tracking-widest shrink-0">CREDIT</span>
+          </div>
+        </button>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between pl-2 pr-1">
@@ -3173,7 +3490,6 @@ export default function App() {
           {activeTab === 'mining' && <div key="mining">{renderMining()}</div>}
           {activeTab === 'network' && <div key="network">{renderNetwork()}</div>}
           {activeTab === 'wallet' && <div key="wallet">{renderWallet()}</div>}
-          {activeTab === 'xgtLocks' && <div key="xgtLocks">{renderXgtLocks()}</div>}
           {activeTab === 'agency' && <div key="agency">{renderAgencyCenter()}</div>}
         </AnimatePresence>
       </main>
@@ -3203,12 +3519,6 @@ export default function App() {
           icon={Wallet}
           label={t('assets')}
           onClick={() => setActiveTab('wallet')}
-        />
-        <NavItem
-          active={activeTab === 'xgtLocks'}
-          icon={Lock}
-          label={t('xgtLocksTab')}
-          onClick={() => setActiveTab('xgtLocks')}
         />
       </nav>
 
@@ -3282,6 +3592,102 @@ export default function App() {
       {founderToast && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-2xl">
           {founderToast}
+        </div>
+      )}
+
+      {/* Ecosystem credit unlock dialog */}
+      {ecoUnlockDialogOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-6">
+          <Card className="w-full max-w-md p-6 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-serif font-bold text-slate-900">
+                {t('ecoUnlockDialogTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEcoUnlockDialogOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[12px] text-slate-500 mb-4">
+              {t('ecoUnlockDialogSubtitle', {
+                available: (ecoCredit?.balanceAvailable ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 }),
+              })}
+            </p>
+
+            <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+              {t('ecoUnlockTypeLabel')}
+            </label>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                type="button"
+                onClick={() => setEcoUnlockType('trade_volume')}
+                className={`px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-widest transition-colors ${
+                  ecoUnlockType === 'trade_volume'
+                    ? 'bg-brand-primary/10 border-brand-primary text-brand-primary'
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {t('ecoUnlockTypeTrade')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEcoUnlockType('xgt_lock')}
+                className={`px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-widest transition-colors ${
+                  ecoUnlockType === 'xgt_lock'
+                    ? 'bg-brand-primary/10 border-brand-primary text-brand-primary'
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {t('ecoUnlockTypeXgt')}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-relaxed mb-4">
+              {ecoUnlockType === 'trade_volume'
+                ? t('ecoUnlockTradeHint')
+                : t('ecoUnlockXgtHint')}
+            </p>
+
+            <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+              {t('ecoUnlockAmountLabel')}
+            </label>
+            <input
+              type="number"
+              min={0}
+              step="0.0001"
+              value={ecoUnlockAmountStr}
+              onChange={(e) => setEcoUnlockAmountStr(e.target.value)}
+              placeholder={t('ecoUnlockAmountPlaceholder')}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-brand-primary focus:outline-none text-[13px] text-slate-800 placeholder:text-slate-300 tabular-nums"
+            />
+
+            <div className="flex items-center gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setEcoUnlockDialogOpen(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-[11px] font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleEcoUnlockSubmit}
+                disabled={ecoUnlockSubmitting || !ecoUnlockAmountStr.trim()}
+                className="flex-1 py-3 rounded-xl bg-brand-primary text-white text-[11px] font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {ecoUnlockSubmitting ? t('submitting') : t('confirm')}
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Ecosystem credit toast */}
+      {ecoToast && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-2xl">
+          {ecoToast}
         </div>
       )}
 

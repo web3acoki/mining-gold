@@ -301,3 +301,54 @@ export interface GoldWithdrawalsPage {
 export function fetchMyGoldWithdrawals(pageNum = 1, pageSize = 20): Promise<GoldWithdrawalsPage> {
   return apiGet<GoldWithdrawalsPage>(`/api/gold/withdrawals?pageNum=${pageNum}&pageSize=${pageSize}`);
 }
+
+// === ecosystem_credit (PRD §10, C-2) ===
+
+export interface ApiEcoCreditEntry {
+  id: number;
+  unlockType: 'trade_volume' | 'xgt_lock' | string;
+  amountCredit: number;
+  tradeVolumeRequired?: number | null;
+  tradeVolumeCompleted?: number | null;
+  xgtLockPlanId?: number | null;
+  xgtLockReleaseAt?: string | null;
+  xgtLockStatus?: string | null;
+  status: 'in_progress' | 'completed' | 'cancelled' | string;
+  startedAt: string;
+  completedAt?: string | null;
+  usdtCredited: number;
+}
+
+export interface ApiMyEcoCredit {
+  balanceLocked: number;
+  balanceUnlocked: number;
+  balanceInProgress: number;
+  balanceAvailable: number;
+  entries: ApiEcoCreditEntry[];
+}
+
+export function fetchMyEcoCredit(): Promise<ApiMyEcoCredit> {
+  return apiGet<ApiMyEcoCredit>('/api/ecosystem-credit/my');
+}
+
+export interface EcoCreditUnlockRequest {
+  amountCredit: number;
+  unlockType: 'trade_volume' | 'xgt_lock';
+  idempotentKey?: string;
+}
+
+export interface ApiEcoCreditUnlockResult {
+  unlockLogId: number;
+  unlockType: string;
+  amountCredit: number;
+  tradeVolumeRequired?: number | null;
+  xgtLockPlanId?: number | null;
+  xgtLockReleaseAt?: string | null;
+  status: string;
+  startedAt: string;
+  idempotent: boolean;
+}
+
+export function submitEcoCreditUnlock(body: EcoCreditUnlockRequest): Promise<ApiEcoCreditUnlockResult> {
+  return apiPost<ApiEcoCreditUnlockResult>('/api/ecosystem-credit/unlock', body);
+}
