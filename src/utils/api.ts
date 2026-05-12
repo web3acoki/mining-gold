@@ -3,7 +3,7 @@
  *
  *  - baseURL：build 时从 VITE_APP_BASE_API 注入；缺省走当前 origin（同域 nginx 反代）
  *  - 鉴权：localStorage[<env>_TOKEN] → authorization + satoken 双 header（与 echo2-h5 同步）
- *  - 响应：RuoYi AjaxResult `{ code, msg, data }`，code > 0 才算成功
+ *  - 响应：RuoYi AjaxResult `{ code, msg, data }`，code === 200 才算成功
  *  - 401/Token 异常：清掉本地 token 并 reject；上层决定是否重定向回 H5
  *
  * 不要在此层做 toast，UI 决定怎么展示错误。
@@ -62,7 +62,8 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown):
     throw new ApiError(`invalid json (HTTP ${res.status})`, res.status, e);
   }
 
-  if (json && json.code > 0) {
+  const code = Number(json?.code ?? res.status);
+  if (json && code === 200) {
     return (json.data as T) ?? (undefined as unknown as T);
   }
 
@@ -70,7 +71,7 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown):
   if (json?.msg && /token/i.test(json.msg)) {
     clearStoredToken();
   }
-  throw new ApiError(json?.msg || `HTTP ${res.status}`, json?.code ?? res.status, json);
+  throw new ApiError(json?.msg || `HTTP ${res.status}`, code, json);
 }
 
 export function apiGet<T>(path: string): Promise<T> {

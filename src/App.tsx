@@ -18,6 +18,7 @@ import {
   CircleDollarSign,
   Trophy,
   History,
+  Copy,
   Info,
   DollarSign,
   Receipt,
@@ -131,11 +132,24 @@ const translations: Record<string, any> = {
     stakeClaim: "Stake Claim",
     marketEngine: "MARKET ENGINE",
     invitationCode: "Invitation Code",
+    copyInvitation: "Copy invitation code",
+    inviteCopied: "Invitation code copied",
+    inviteCopyFailed: "Copy failed. Please copy the code manually.",
+    switchLanguage: "Switch language",
     directs: "Directs",
     total: "Total",
     bonus: "Bonus",
     networkScanning: "Network scanning active",
     globalGenealogy: "Global Genealogy",
+    globalGenealogyPending: "Global genealogy is being prepared.",
+    openImage: "Open image",
+    enlargeImage: "Enlarge image",
+    closeImage: "Close image",
+    previousImage: "Previous image",
+    nextImage: "Next image",
+    homeIntroImageGold: "Gold & trust visual",
+    homeIntroImageCompute: "AI compute visual",
+    homeIntroImageEcosystem: "Ecosystem overview visual",
     trustBacking: "Trust & Backing",
     strategyRules: "Strategy Rules",
     strategyDesc: "Matchup rewards settled daily based on node cap. Genesis partners have priority spillover positioning for maximum efficiency.",
@@ -455,11 +469,24 @@ const translations: Record<string, any> = {
     stakeClaim: "立即认领",
     marketEngine: "市场引擎",
     invitationCode: "邀请码",
+    copyInvitation: "复制邀请码",
+    inviteCopied: "邀请码已复制",
+    inviteCopyFailed: "复制失败，请手动复制邀请码。",
+    switchLanguage: "切换语言",
     directs: "直推",
     total: "累计",
     bonus: "奖金",
     networkScanning: "网络扫描激活中",
     globalGenealogy: "全球谱系图",
+    globalGenealogyPending: "全球谱系图正在准备中",
+    openImage: "打开图片",
+    enlargeImage: "放大图片",
+    closeImage: "关闭图片",
+    previousImage: "上一张图片",
+    nextImage: "下一张图片",
+    homeIntroImageGold: "黄金与信托实景",
+    homeIntroImageCompute: "AI 算力实景",
+    homeIntroImageEcosystem: "生态概览实景",
     trustBacking: "战略背书与资质",
     strategyRules: "策略规则",
     strategyDesc: "对碰奖励根据节点上限每日结算。创始合伙人享有优先滑落排位，以实现效率最大化。",
@@ -803,25 +830,27 @@ const BANNERS = [
 const HOME_INTRO_IMAGES = [
   {
     src: goldTrustVisualUrl,
-    alt: "Gold & trust visual",
+    altKey: 'homeIntroImageGold',
   },
   {
     src: aiComputeVisualUrl,
-    alt: "AI compute visual",
+    altKey: 'homeIntroImageCompute',
   },
   {
     src: ecosystemOverviewVisualUrl,
-    alt: "Ecosystem overview visual",
+    altKey: 'homeIntroImageEcosystem',
   },
 ];
 
 type LightboxImage = { src: string; alt: string };
+type LightboxLabels = { close: string; previous: string; next: string };
 
 const ImageLightboxOverlay: React.FC<{
   images: LightboxImage[];
   activeIndex: number | null;
   onActiveIndexChange: React.Dispatch<React.SetStateAction<number | null>>;
-}> = ({ images, activeIndex, onActiveIndexChange }) => {
+  labels: LightboxLabels;
+}> = ({ images, activeIndex, onActiveIndexChange, labels }) => {
   const total = images.length;
   const isOpen = activeIndex !== null;
   const close = () => onActiveIndexChange(null);
@@ -883,7 +912,7 @@ const ImageLightboxOverlay: React.FC<{
               e.stopPropagation();
               close();
             }}
-            aria-label="Close image"
+            aria-label={labels.close}
             className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md border border-white/15 transition"
           >
             <X size={20} />
@@ -897,7 +926,7 @@ const ImageLightboxOverlay: React.FC<{
                   e.stopPropagation();
                   goPrev();
                 }}
-                aria-label="Previous image"
+                aria-label={labels.previous}
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md border border-white/15 transition"
               >
                 <ChevronLeft size={22} />
@@ -908,7 +937,7 @@ const ImageLightboxOverlay: React.FC<{
                   e.stopPropagation();
                   goNext();
                 }}
-                aria-label="Next image"
+                aria-label={labels.next}
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md border border-white/15 transition"
               >
                 <ChevronRight size={22} />
@@ -941,9 +970,11 @@ const ImageLightboxOverlay: React.FC<{
 
 interface HomeIntroImageGridProps {
   images: LightboxImage[];
+  openLabel: string;
+  lightboxLabels: LightboxLabels;
 }
 
-const HomeIntroImageGrid: React.FC<HomeIntroImageGridProps> = ({ images }) => {
+const HomeIntroImageGrid: React.FC<HomeIntroImageGridProps> = ({ images, openLabel, lightboxLabels }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   return (
@@ -954,7 +985,7 @@ const HomeIntroImageGrid: React.FC<HomeIntroImageGridProps> = ({ images }) => {
             type="button"
             key={img.src}
             onClick={() => setActiveIndex(i)}
-            aria-label={`Open image: ${img.alt}`}
+            aria-label={`${openLabel}: ${img.alt}`}
             className={`relative overflow-hidden rounded-3xl border border-slate-100 bg-slate-50 cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-brand-primary/40 ${
               i === 2 ? 'col-span-2' : ''
             }`}
@@ -973,6 +1004,7 @@ const HomeIntroImageGrid: React.FC<HomeIntroImageGridProps> = ({ images }) => {
         images={images}
         activeIndex={activeIndex}
         onActiveIndexChange={setActiveIndex}
+        labels={lightboxLabels}
       />
     </>
   );
@@ -985,8 +1017,14 @@ interface TrustBackingCard {
   objectContain?: boolean;
 }
 
-const TrustBackingStrip: React.FC<{ cards: TrustBackingCard[] }> = ({
+const TrustBackingStrip: React.FC<{
+  cards: TrustBackingCard[];
+  enlargeLabel: string;
+  lightboxLabels: LightboxLabels;
+}> = ({
   cards,
+  enlargeLabel,
+  lightboxLabels,
 }) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const slides = cards.map((c) => ({ src: c.src, alt: c.alt }));
@@ -1003,7 +1041,7 @@ const TrustBackingStrip: React.FC<{ cards: TrustBackingCard[] }> = ({
             <button
               type="button"
               onClick={() => setActiveIndex(i)}
-              aria-label={`Enlarge image: ${card.alt}`}
+              aria-label={`${enlargeLabel}: ${card.alt}`}
               className="w-full text-left rounded-2xl cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-brand-primary/35"
             >
               <div className="w-full h-20 bg-neutral-50 rounded-2xl mb-2 overflow-hidden border border-neutral-50">
@@ -1032,6 +1070,7 @@ const TrustBackingStrip: React.FC<{ cards: TrustBackingCard[] }> = ({
         images={slides}
         activeIndex={activeIndex}
         onActiveIndexChange={setActiveIndex}
+        labels={lightboxLabels}
       />
     </>
   );
@@ -1281,6 +1320,7 @@ export default function App() {
   const [ecoUnlockType, setEcoUnlockType] = useState<'trade_volume' | 'xgt_lock'>('trade_volume');
   const [ecoUnlockSubmitting, setEcoUnlockSubmitting] = useState(false);
   const [ecoToast, setEcoToast] = useState<string | null>(null);
+  const [networkToast, setNetworkToast] = useState<string | null>(null);
   const [binaryTeam, setBinaryTeam] = useState<ApiBinaryTeam | null>(null);
 
   // 金矿子钱包费率（B 路线第一组，初始化时拉一次）
@@ -1423,13 +1463,7 @@ export default function App() {
   };
 
   const handleReturnToCex = () => {
-    // Prefer returning to the container (CEX) via browser history.
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-
-    // Fallback: allow CEX to pass an explicit return URL.
+    // Prefer the explicit URL injected by CEX; browser history may point to a blank bootstrap tab.
     const params = new URLSearchParams(window.location.search);
     const returnUrl = params.get('returnUrl') || params.get('backUrl');
     if (returnUrl) {
@@ -1437,8 +1471,30 @@ export default function App() {
       return;
     }
 
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
     // Last resort: stay in H5 and go to its home tab.
     setActiveTab('home');
+  };
+
+  const handleCopyInvitation = async () => {
+    const code = user?.refCode || '';
+    if (!code) return;
+
+    try {
+      await navigator.clipboard.writeText(code);
+      setNetworkToast(t('inviteCopied'));
+    } catch (e) {
+      console.warn('[gold] copy invitation failed', e);
+      setNetworkToast(t('inviteCopyFailed'));
+    }
+  };
+
+  const handleGlobalGenealogy = () => {
+    setNetworkToast(t('globalGenealogyPending'));
   };
 
   const t = (key: string, data?: any) => {
@@ -1639,6 +1695,12 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [ecoToast]);
 
+  useEffect(() => {
+    if (!networkToast) return;
+    const id = window.setTimeout(() => setNetworkToast(null), 2400);
+    return () => window.clearTimeout(id);
+  }, [networkToast]);
+
   if (!user) return <div className="min-h-screen bg-bg-main flex items-center justify-center text-brand-primary font-black italic tracking-tighter uppercase">{t('initializing')}</div>;
 
   const renderHome = () => (
@@ -1744,7 +1806,15 @@ export default function App() {
         </div>
 
         <div className="mt-4">
-          <HomeIntroImageGrid images={HOME_INTRO_IMAGES} />
+          <HomeIntroImageGrid
+            images={HOME_INTRO_IMAGES.map((img) => ({ src: img.src, alt: t(img.altKey) }))}
+            openLabel={t('openImage')}
+            lightboxLabels={{
+              close: t('closeImage'),
+              previous: t('previousImage'),
+              next: t('nextImage'),
+            }}
+          />
         </div>
 
         <div className="mt-5 space-y-3">
@@ -1782,6 +1852,12 @@ export default function App() {
 
       <SectionTitle title={t('trustBacking')} />
       <TrustBackingStrip
+        enlargeLabel={t('enlargeImage')}
+        lightboxLabels={{
+          close: t('closeImage'),
+          previous: t('previousImage'),
+          next: t('nextImage'),
+        }}
         cards={[
           {
             src: miningPermitImgUrl,
@@ -2151,10 +2227,22 @@ export default function App() {
              {t('invitationCode')}: <span className="text-brand-primary font-bold">{user.refCode}</span>
            </p>
         </div>
-        <button className="p-3.5 bg-white border border-slate-100 rounded-2xl text-slate-400 shadow-sm hover:text-brand-primary transition-all active:scale-95">
-          <History size={20} />
+        <button
+          type="button"
+          onClick={handleCopyInvitation}
+          aria-label={t('copyInvitation')}
+          title={t('copyInvitation')}
+          className="p-3.5 bg-white border border-slate-100 rounded-2xl text-slate-400 shadow-sm hover:text-brand-primary transition-all active:scale-95"
+        >
+          <Copy size={20} />
         </button>
       </div>
+
+      {networkToast && (
+        <div className="px-4 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-lg">
+          {networkToast}
+        </div>
+      )}
 
       {/* Market & Network Overview (moved from Home) */}
       <div className="space-y-4">
@@ -2329,7 +2417,11 @@ export default function App() {
          </div>
          
          <p className="mt-10 text-[10px] text-slate-400 text-center uppercase tracking-[0.4em] font-medium">{t('networkScanning')}</p>
-         <button className="mt-6 text-[11px] text-brand-primary font-bold uppercase tracking-[0.2em] hover:opacity-70 transition-opacity flex items-center gap-2">
+         <button
+           type="button"
+           onClick={handleGlobalGenealogy}
+           className="mt-6 text-[11px] text-brand-primary font-bold uppercase tracking-[0.2em] hover:opacity-70 transition-opacity flex items-center gap-2"
+         >
            {t('globalGenealogy')}
            <ChevronRight size={14} />
          </button>
@@ -3605,6 +3697,7 @@ export default function App() {
       idempotentKey,
     })
       .then((res: ApiNodeBuyResult) => {
+        if (!res) throw new Error('empty response');
         setNodeBuyDialogOpen(false);
         setNodeBuyFundPassword('');
         setNodeBuyToast({
@@ -3647,6 +3740,7 @@ export default function App() {
       idempotentKey,
     })
       .then((res) => {
+        if (!res) throw new Error('empty response');
         setFounderDialogOpen(false);
         setFounderFundPassword('');
         setFounderAcknowledged(false);
@@ -3692,13 +3786,15 @@ export default function App() {
              <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(5,150,105,0.4)]" />
              <span className="text-[10px] font-bold uppercase text-emerald-800 tracking-[0.1em]">{t('liveNodes')}</span>
           </div>
-          <motion.div 
+          <motion.button
+            type="button"
             whileTap={{ scale: 0.9 }} 
             onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}
+            aria-label={t('switchLanguage')}
             className="px-4 h-10 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center shadow-sm cursor-pointer hover:bg-slate-100 transition-colors text-slate-600 text-[10px] font-bold uppercase tracking-widest"
           >
             {lang === 'en' ? 'EN' : '中'}
-          </motion.div>
+          </motion.button>
         </div>
       </header>
 
@@ -3737,7 +3833,10 @@ export default function App() {
           active={activeTab === 'wallet'}
           icon={Wallet}
           label={t('assets')}
-          onClick={() => setActiveTab('wallet')}
+          onClick={() => {
+            setActiveTab('wallet');
+            setWalletView('overview');
+          }}
         />
       </nav>
 
