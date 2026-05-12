@@ -23,6 +23,25 @@ export function fetchMyMiners(): Promise<ApiMyMiner[]> {
   return apiGet<ApiMyMiner[]>('/api/nodes/my');
 }
 
+// === node levels (GET /api/nodes/levels) ===
+export interface ApiNodeLevel {
+  id: number;
+  levelCode: string;          // L1 / L2 / L3 / L4
+  nameEn: string;
+  nameZh: string;
+  priceUsdt: number;
+  dailyYieldRate: number;     // 0.0125 = 1.25%
+  teamDailyCapUsdt: number;
+  exitMultiplier: number;     // 3.0 = 300%
+  enabled: number;            // 1=启用
+  sort: number;
+  remark?: string | null;
+}
+
+export function fetchNodeLevels(): Promise<ApiNodeLevel[]> {
+  return apiGet<ApiNodeLevel[]>('/api/nodes/levels');
+}
+
 // === buy node (POST /api/nodes/buy) ===
 export interface NodeBuyRequest {
   levelCode: string;       // L1 / L2 / L3 / L4

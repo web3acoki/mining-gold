@@ -40,7 +40,9 @@ import {
   fetchFounderStatus,
   submitFounderPurchase,
   submitNodeBuy,
+  fetchNodeLevels,
   ApiNodeBuyResult,
+  ApiNodeLevel,
   fetchMyEcoCredit,
   submitEcoCreditUnlock,
   fetchMyGoldWithdrawals,
@@ -1252,9 +1254,12 @@ export default function App() {
   const [founderSubmitting, setFounderSubmitting] = useState(false);
   const [founderToast, setFounderToast] = useState<string>('');
 
+  // L1-L4 真实配置（GET /api/nodes/levels），后端 t_node_level 启用行
+  const [nodeLevels, setNodeLevels] = useState<NodeCatalogItem[]>(NODES);
+
   // L1-L4 普通矿机购买弹窗
   const [nodeBuyDialogOpen, setNodeBuyDialogOpen] = useState(false);
-  const [nodeBuyTarget, setNodeBuyTarget] = useState<typeof NODES[number] | null>(null);
+  const [nodeBuyTarget, setNodeBuyTarget] = useState<NodeCatalogItem | null>(null);
   const [nodeBuyFundPassword, setNodeBuyFundPassword] = useState('');
   const [nodeBuySubmitting, setNodeBuySubmitting] = useState(false);
   const [nodeBuyToast, setNodeBuyToast] = useState<string>('');
@@ -1406,6 +1411,31 @@ export default function App() {
   // 拉真实金矿数据（矿机 / 奖励 / XGT 锁仓）
   useEffect(() => {
     let cancelled = false;
+
+    // L1-L4 配置（admin 后台改 t_node_level 价格 / 收益率 → 这里立刻拉到新值）
+    fetchNodeLevels()
+      .then((rows) => {
+        if (cancelled || !rows || rows.length === 0) return;
+        const adapted: NodeCatalogItem[] = rows.map((r: ApiNodeLevel, i: number) => {
+          const price = Number(r.priceUsdt || 0);
+          const rate = Number(r.dailyYieldRate || 0);
+          const dailyStatic = price * rate;
+          const paybackDays = rate > 0 ? Math.round(1 / rate) : 0;
+          return {
+            id: r.levelCode.toLowerCase(),
+            level: r.levelCode as MinerLevel,
+            price,
+            cp: price,
+            dailyCap: Number(r.teamDailyCapUsdt || 0),
+            dailyRate: rate,
+            dailyStatic,
+            paybackDays,
+            color: NODES[i]?.color || 'from-amber-400 to-amber-600',
+          };
+        });
+        setNodeLevels(adapted);
+      })
+      .catch((e) => console.warn('[gold] fetchNodeLevels failed, fallback to hardcode NODES', e));
 
     fetchMyMiners()
       .then((list) => {
@@ -1843,7 +1873,7 @@ export default function App() {
       </div>
 
       <div className="grid grid-cols-1 gap-5">
-        {NODES.map((node) => (
+        {nodeLevels.map((node) => (
           <motion.div whileTap={{ scale: 0.98 }} key={node.id}>
             <Card className="relative p-7 group cursor-pointer border-slate-100 hover:border-brand-primary/30 transition-all shadow-xl shadow-slate-200/20 bg-white">
               <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${node.color} opacity-5 rounded-full -mr-10 -mt-10 blur-3xl group-hover:opacity-10 transition-opacity`} />
