@@ -53,6 +53,7 @@ import {
   ApiMyEcoCredit,
   ApiEcoCreditEntry,
 } from './utils/goldApi';
+import { bootstrapTokenFromQuery } from './utils/auth';
 import goldTrustVisualUrl from './public/image/gold.png';
 import aiComputeVisualUrl from './public/image/gold2.png';
 import ecosystemOverviewVisualUrl from './public/image/gold3.jpg';
@@ -1348,11 +1349,13 @@ export default function App() {
 
   // Simulate CEX injection
   useEffect(() => {
+    // BUG FIX 2026-05-12：之前自己写 localStorage.setItem('xagent_token', ...)
+    // key 和 utils/auth.ts 里 getStoredToken 用的 `${VITE_APP_ENV}_TOKEN` 不一致，
+    // 导致所有 API 请求拿不到 token、被后端 401，前端 catch 静默吞掉，看起来"还是 mock"。
+    // 改用 auth.ts 里写好的 bootstrapTokenFromQuery：用对的 key 写入并清掉地址栏 token。
+    bootstrapTokenFromQuery();
+
     const params = new URLSearchParams(window.location.search);
-    const cexToken = params.get('token');
-    if (cexToken) {
-      localStorage.setItem('xagent_token', cexToken);
-    }
     const mockUser: UserState = {
       uid: params.get('uid') || 'UX_88291',
       refCode: params.get('ref') || 'XGT_GOLD',
