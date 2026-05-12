@@ -249,6 +249,7 @@ const translations: Record<string, any> = {
 
     healthyOutExplainShort: "Each miner has independent 300% ceiling. Static, referral & team gross counts.",
     eligibilityExplainShort: "No active miner — no static, referral, team or agency fee dividends.",
+    activeMinerEligibilityExplain: "Active miner detected — static, referral and team rewards count until the 300% healthy-out cap.",
 
     // Home Project Introduction
     homeIntroTag: "Project Introduction",
@@ -586,6 +587,7 @@ const translations: Record<string, any> = {
 
     healthyOutExplainShort: "每台矿机独立 300% 额度；静态、直推、团队奖励毛额计入。",
     eligibilityExplainShort: "无 active 矿机则无静态分红、直推奖、团队代理奖与代理全网手续费分红。",
+    activeMinerEligibilityExplain: "已检测到 active 矿机，静态分红、直推奖与团队奖励会计入 300% 健康出局封顶。",
 
     // Home Project Introduction
     homeIntroTag: "项目介绍",
@@ -1902,7 +1904,9 @@ export default function App() {
       <div className="space-y-5">
         <Card className="p-5 border-slate-100 bg-slate-50/80 shadow-sm">
           <p className="text-[11px] text-slate-600 leading-relaxed font-medium">{t('healthyOutExplainShort')}</p>
-          <p className="text-[11px] text-slate-500 leading-relaxed font-medium mt-2">{t('eligibilityExplainShort')}</p>
+          <p className="text-[11px] text-slate-500 leading-relaxed font-medium mt-2">
+            {sorted.length > 0 ? t('activeMinerEligibilityExplain') : t('eligibilityExplainShort')}
+          </p>
         </Card>
 
         {user?.riskFrozen ? (
