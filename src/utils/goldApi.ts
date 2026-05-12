@@ -23,6 +23,28 @@ export function fetchMyMiners(): Promise<ApiMyMiner[]> {
   return apiGet<ApiMyMiner[]>('/api/nodes/my');
 }
 
+// === buy node (POST /api/nodes/buy) ===
+export interface NodeBuyRequest {
+  levelCode: string;       // L1 / L2 / L3 / L4
+  fundPassword: string;    // 资金密码明文，HTTPS + 后端 BCrypt 比对
+  idempotentKey: string;   // 客户端生成 UUID 防重复扣款
+}
+
+export interface ApiNodeBuyResult {
+  instanceId: number;
+  levelCode: string;
+  priceUsdt: number;
+  dailyYieldRate: number;
+  exitTargetUsdt: number;
+  status: string;
+  activatedAt: string;
+  idempotent: boolean;     // true = 幂等命中，未实际扣款
+}
+
+export function submitNodeBuy(body: NodeBuyRequest): Promise<ApiNodeBuyResult> {
+  return apiPost<ApiNodeBuyResult>('/api/nodes/buy', body);
+}
+
 // === rewards/daily (POST /api/rewards/daily) ===
 export interface RewardQueryRequest {
   rewardType?: string;

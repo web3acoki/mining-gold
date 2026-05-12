@@ -39,6 +39,8 @@ import {
   cancelAgencyApplication,
   fetchFounderStatus,
   submitFounderPurchase,
+  submitNodeBuy,
+  ApiNodeBuyResult,
   fetchMyEcoCredit,
   submitEcoCreditUnlock,
   fetchMyGoldWithdrawals,
@@ -319,6 +321,17 @@ const translations: Record<string, any> = {
     founderApplyCancel: "Cancel",
     founderApplySuccessToast: "Purchase successful · seat #{seatNo}",
     founderApplyFailToast: "Purchase failed",
+
+    // L1-L4 node purchase
+    nodeBuyDialogTitle: "Purchase {level} AI Miner",
+    nodeBuyDialogSubtitle: "{price} USDT · spot wallet · daily yield {rate}%",
+    nodeBuyConfirm: "Confirm purchase",
+    nodeBuyCancel: "Cancel",
+    nodeBuyFundPwdRequired: "Fund password is required",
+    nodeBuyInsufficient: "Insufficient USDT balance in spot wallet",
+    nodeBuySuccessToast: "Purchase successful · {level} miner activated",
+    nodeBuyIdempotentToast: "Already purchased · {level} miner",
+    nodeBuyFailToast: "Purchase failed",
 
     // Common (used by ecosystem credit dialog)
     cancel: "Cancel",
@@ -616,6 +629,17 @@ const translations: Record<string, any> = {
     founderApplyCancel: "取消",
     founderApplySuccessToast: "购买成功 · 第 {seatNo} 席",
     founderApplyFailToast: "购买失败",
+
+    // L1-L4 普通矿机购买
+    nodeBuyDialogTitle: "购买 {level} AI 矿机",
+    nodeBuyDialogSubtitle: "{price} USDT · 现货钱包扣款 · 每日收益率 {rate}%",
+    nodeBuyConfirm: "确认购买",
+    nodeBuyCancel: "取消",
+    nodeBuyFundPwdRequired: "请输入资金密码",
+    nodeBuyInsufficient: "现货 USDT 余额不足",
+    nodeBuySuccessToast: "购买成功 · {level} 矿机已激活",
+    nodeBuyIdempotentToast: "矿机已存在 · {level}（重复请求）",
+    nodeBuyFailToast: "购买失败",
 
     // 通用（生态额度弹窗复用）
     cancel: "取消",
@@ -1228,6 +1252,13 @@ export default function App() {
   const [founderSubmitting, setFounderSubmitting] = useState(false);
   const [founderToast, setFounderToast] = useState<string>('');
 
+  // L1-L4 普通矿机购买弹窗
+  const [nodeBuyDialogOpen, setNodeBuyDialogOpen] = useState(false);
+  const [nodeBuyTarget, setNodeBuyTarget] = useState<typeof NODES[number] | null>(null);
+  const [nodeBuyFundPassword, setNodeBuyFundPassword] = useState('');
+  const [nodeBuySubmitting, setNodeBuySubmitting] = useState(false);
+  const [nodeBuyToast, setNodeBuyToast] = useState<string>('');
+
   const reloadFounder = React.useCallback(() => {
     setFounderLoading(true);
     fetchFounderStatus()
@@ -1831,6 +1862,12 @@ export default function App() {
                     </p>
                     <button
                       type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNodeBuyTarget(node);
+                        setNodeBuyFundPassword('');
+                        setNodeBuyDialogOpen(true);
+                      }}
                       className="mt-3 bg-slate-900 text-brand-primary px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.15em] border border-slate-800 hover:bg-brand-primary hover:text-slate-900 transition-all shadow-lg"
                     >
                       {t('initiate')}
@@ -3433,6 +3470,44 @@ export default function App() {
     );
   };
 
+  const handleNodeBuy = () => {
+    if (nodeBuySubmitting) return;
+    if (!nodeBuyTarget) return;
+    if (!nodeBuyFundPassword.trim()) {
+      setNodeBuyToast(t('nodeBuyFundPwdRequired'));
+      return;
+    }
+    if (user && user.balanceUSDT < nodeBuyTarget.price) {
+      setNodeBuyToast(t('nodeBuyInsufficient'));
+      return;
+    }
+    setNodeBuySubmitting(true);
+    const idempotentKey = `NODE-${user?.uid || 'anon'}-${nodeBuyTarget.level}-${Date.now()}`;
+    submitNodeBuy({
+      levelCode: nodeBuyTarget.level,
+      fundPassword: nodeBuyFundPassword,
+      idempotentKey,
+    })
+      .then((res: ApiNodeBuyResult) => {
+        setNodeBuyDialogOpen(false);
+        setNodeBuyFundPassword('');
+        setNodeBuyToast(
+          res.idempotent
+            ? t('nodeBuyIdempotentToast', { level: res.levelCode })
+            : t('nodeBuySuccessToast', { level: res.levelCode })
+        );
+        // 刷新我的矿机 / 钱包余额
+        fetchMyMiners().then((list) => setMyMiners((list || []).map(adaptMyMiner))).catch(() => {});
+        fetchMyGoldWallet().then((w) => {
+          if (w) {
+            setUser((prev) => (prev ? { ...prev, balanceUSDT: Number(w.usdtBalance ?? 0) } : prev));
+          }
+        }).catch(() => {});
+      })
+      .catch((e: any) => setNodeBuyToast(e?.message || t('nodeBuyFailToast')))
+      .finally(() => setNodeBuySubmitting(false));
+  };
+
   const handleFounderPurchase = () => {
     if (founderSubmitting) return;
     if (!founderAcknowledged || !founderFundPassword.trim()) return;
@@ -3595,6 +3670,100 @@ export default function App() {
       {founderToast && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-2xl">
           {founderToast}
+        </div>
+      )}
+
+      {/* L1-L4 普通矿机购买弹窗 */}
+      {nodeBuyDialogOpen && nodeBuyTarget && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-6">
+          <Card className="w-full max-w-md p-6 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-serif font-bold text-slate-900">
+                {t('nodeBuyDialogTitle', { level: nodeBuyTarget.level })}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setNodeBuyDialogOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[12px] text-slate-500 mb-4">
+              {t('nodeBuyDialogSubtitle', {
+                price: nodeBuyTarget.price.toLocaleString(),
+                rate: (nodeBuyTarget.dailyRate * 100).toFixed(2),
+              })}
+            </p>
+
+            <div className="bg-slate-50 rounded-2xl p-4 mb-4 border border-slate-100">
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div>
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">{t('dailyStaticShort')}</p>
+                  <p className="text-slate-900 font-bold mt-1">{nodeBuyTarget.dailyStatic} USDT</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">{t('paybackDays')}</p>
+                  <p className="text-slate-900 font-bold mt-1">{nodeBuyTarget.paybackDays} {t('daysUnit')}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">{t('teamDailyCap')}</p>
+                  <p className="text-slate-900 font-bold mt-1">{nodeBuyTarget.dailyCap.toLocaleString()} USDT</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[9px]">300% 出局</p>
+                  <p className="text-slate-900 font-bold mt-1">{(nodeBuyTarget.price * 3).toLocaleString()} USDT</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 mb-2">
+              {lang === 'en' ? 'Spot balance' : '现货余额'}：
+              <span className={`font-bold ml-1 ${user && user.balanceUSDT < nodeBuyTarget.price ? 'text-rose-600' : 'text-slate-900'}`}>
+                {(user?.balanceUSDT ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
+              </span>
+            </p>
+
+            <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-3 mb-2">
+              {t('founderFundPasswordLabel')}
+            </label>
+            <input
+              type="password"
+              value={nodeBuyFundPassword}
+              onChange={(e) => setNodeBuyFundPassword(e.target.value)}
+              placeholder={t('founderFundPasswordPlaceholder')}
+              autoComplete="off"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-brand-primary focus:outline-none text-[13px] text-slate-800 placeholder:text-slate-300"
+            />
+
+            <div className="flex items-center gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setNodeBuyDialogOpen(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-[11px] font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+              >
+                {t('nodeBuyCancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleNodeBuy}
+                disabled={nodeBuySubmitting || !nodeBuyFundPassword.trim()}
+                className="flex-1 py-3 rounded-xl bg-slate-900 text-brand-primary text-[11px] font-bold uppercase tracking-widest hover:bg-brand-primary hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {nodeBuySubmitting ? t('submitting') : t('nodeBuyConfirm')}
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* L1-L4 toast */}
+      {nodeBuyToast && (
+        <div
+          className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-2xl cursor-pointer"
+          onClick={() => setNodeBuyToast('')}
+        >
+          {nodeBuyToast}
         </div>
       )}
 
