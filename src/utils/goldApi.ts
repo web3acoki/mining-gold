@@ -290,6 +290,17 @@ export function fetchMyGoldWallet(): Promise<ApiGoldWallet> {
   return apiGet<ApiGoldWallet>('/api/gold/wallet');
 }
 
+// 主现货 USDT 余额（GET /api/gold/spot-usdt）
+// 专给"买矿机/49 席"弹窗 + 前置校验用，不是金矿子钱包余额。
+export interface ApiSpotUsdt {
+  availableAmount: number;
+  totalAmount: number;
+}
+
+export function fetchMySpotUsdt(): Promise<ApiSpotUsdt> {
+  return apiGet<ApiSpotUsdt>('/api/gold/spot-usdt');
+}
+
 export interface GoldWithdrawRequest {
   assetType?: string;     // 仅 USDT，留 undefined 后端默认 USDT
   amount: number;

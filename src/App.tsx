@@ -23,7 +23,9 @@ import {
   Receipt,
   Lock,
   Gift,
-  X
+  X,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -32,6 +34,7 @@ import {
   fetchMyXgtLocks,
   fetchBinaryTeam,
   fetchMyGoldWallet,
+  fetchMySpotUsdt,
   submitGoldWithdraw,
   fetchMyAgent,
   fetchAgentApplications,
@@ -56,6 +59,7 @@ import {
   ApiFounderStatus,
   ApiMyEcoCredit,
   ApiEcoCreditEntry,
+  ApiSpotUsdt,
 } from './utils/goldApi';
 import { bootstrapTokenFromQuery } from './utils/auth';
 import goldTrustVisualUrl from './public/image/gold.png';
@@ -66,6 +70,36 @@ import miningPermit2ImgUrl from './public/image/mining permit2.png';
 import miningPermit3ImgUrl from './public/image/mining permit3.png';
 
 // --- Constants & Types ---
+
+// 富 toast：双色 + 图标 + 友好文案（用户反馈 2026-05-12）
+type RichToastKind = 'success' | 'error';
+interface RichToast {
+  kind: RichToastKind;
+  text: string;
+}
+
+/**
+ * 后端 ApiError.message 通常已是 i18n 翻译过的中文，但少数底层错误(超时/网关/key 未配)会以英文/key
+ * 名返回，用户看不懂。本表按 raw msg 的关键字命中映射到子站本地 i18n 友好文案。命中后返回的是 i18n
+ * key，调用方再用 t() 翻译，保证跟随 lang 切换。
+ */
+function mapBackendErrorKey(raw: string | undefined | null, fallback: string = 'errUnknown'): string {
+  const m = String(raw || '').toLowerCase();
+  if (!m) return fallback;
+  if (/insufficient|余额不足|usdt.*insufficient/.test(m)) return 'errBalanceLow';
+  if (/password_notbind|notbind|请设置安全密码|please set/.test(m)) return 'errFundPwdNotSet';
+  if (/tard_password|wrong.*password|密码.*(错|不正确)|password.*incorrect/.test(m)) return 'errFundPwdWrong';
+  if (/level.*invalid|invalid.*level|矿机.*(无效|不可用)/.test(m)) return 'errLevelInvalid';
+  if (/level.*duplicate|level.duplicate|已持有/.test(m)) return 'errSameLevelOwned';
+  if (/duplicate|idempotent|重复/.test(m)) return 'errDuplicate';
+  if (/sold[ _-]?out|售罄/.test(m)) return 'errSeatSoldOut';
+  if (/already.*owned|owned.*seat|已持有.*席/.test(m)) return 'errSeatOwned';
+  if (/freeze|frozen|冻结/.test(m)) return 'errUserFrozen';
+  if (/network|timeout|fetch|网络|连接/.test(m)) return 'errNetwork';
+  if (/token|session|未登录|登录失效|http 401/.test(m)) return 'errSession';
+  return fallback;
+}
+
 const translations: Record<string, any> = {
   en: {
     home: "Home",
@@ -322,7 +356,8 @@ const translations: Record<string, any> = {
     founderApplyConfirm: "Confirm purchase",
     founderApplyCancel: "Cancel",
     founderApplySuccessToast: "Purchase successful · seat #{seatNo}",
-    founderApplyFailToast: "Purchase failed",
+    founderApplySuccessRich: "Purchase successful! Founder seat #{seatNo} activated. First static dividend lands after 00:05 tomorrow (local time).",
+    founderApplyFailToast: "Purchase failed. Please try again.",
 
     // L1-L4 node purchase
     nodeBuyDialogTitle: "Purchase {level} AI Miner",
@@ -332,8 +367,23 @@ const translations: Record<string, any> = {
     nodeBuyFundPwdRequired: "Fund password is required",
     nodeBuyInsufficient: "Insufficient USDT balance in spot wallet",
     nodeBuySuccessToast: "Purchase successful · {level} miner activated",
-    nodeBuyIdempotentToast: "Already purchased · {level} miner",
-    nodeBuyFailToast: "Purchase failed",
+    nodeBuySuccessRich: "Purchase successful! {level} AI miner activated. First static dividend lands after 00:05 tomorrow (local time).",
+    nodeBuyIdempotentToast: "You already own a {level} miner.",
+    nodeBuyFailToast: "Purchase failed. Please try again.",
+
+    // 后端错误统一映射 (e.message 命中关键字 → 友好文案)
+    errBalanceLow: "Insufficient USDT balance in spot wallet.",
+    errFundPwdWrong: "Wrong fund password.",
+    errFundPwdNotSet: "Please set your fund password in Profile first.",
+    errLevelInvalid: "This miner level is unavailable.",
+    errSameLevelOwned: "You already own a miner of this level.",
+    errDuplicate: "Duplicate request, please refresh and retry.",
+    errSeatSoldOut: "All founder seats have been sold out.",
+    errSeatOwned: "You already own a founder seat.",
+    errUserFrozen: "Your account is frozen. Please contact support.",
+    errNetwork: "Network error. Please check your connection and retry.",
+    errSession: "Login session expired. Please log in again.",
+    errUnknown: "Operation failed. Please try again later.",
 
     // Common (used by ecosystem credit dialog)
     cancel: "Cancel",
@@ -630,7 +680,8 @@ const translations: Record<string, any> = {
     founderApplyConfirm: "确认购买",
     founderApplyCancel: "取消",
     founderApplySuccessToast: "购买成功 · 第 {seatNo} 席",
-    founderApplyFailToast: "购买失败",
+    founderApplySuccessRich: "购买成功！第 {seatNo} 席已激活，明日 00:05 后下发首笔静态分红。",
+    founderApplyFailToast: "购买失败，请稍后重试",
 
     // L1-L4 普通矿机购买
     nodeBuyDialogTitle: "购买 {level} AI 矿机",
@@ -640,8 +691,23 @@ const translations: Record<string, any> = {
     nodeBuyFundPwdRequired: "请输入资金密码",
     nodeBuyInsufficient: "现货 USDT 余额不足",
     nodeBuySuccessToast: "购买成功 · {level} 矿机已激活",
-    nodeBuyIdempotentToast: "矿机已存在 · {level}（重复请求）",
-    nodeBuyFailToast: "购买失败",
+    nodeBuySuccessRich: "购买成功！{level} AI 矿机已激活，明日 00:05 后下发首笔静态分红。",
+    nodeBuyIdempotentToast: "您已持有 {level} 矿机",
+    nodeBuyFailToast: "购买失败，请稍后重试",
+
+    // 后端错误统一映射 (e.message 命中关键字 → 友好文案)
+    errBalanceLow: "现货 USDT 余额不足，请先充值或调整购买等级。",
+    errFundPwdWrong: "资金密码不正确，请重新输入。",
+    errFundPwdNotSet: "请先到个人中心设置资金密码。",
+    errLevelInvalid: "该矿机等级当前不可用。",
+    errSameLevelOwned: "您已持有同等级矿机，待出局后可重买。",
+    errDuplicate: "操作重复，请刷新页面后重试。",
+    errSeatSoldOut: "创世席位已全部售罄。",
+    errSeatOwned: "您已持有创世席位，每人限购一席。",
+    errUserFrozen: "账号已冻结，请联系客服处理。",
+    errNetwork: "网络异常，请检查连接后重试。",
+    errSession: "登录已失效，请重新登录。",
+    errUnknown: "操作失败，请稍后再试。",
 
     // 通用（生态额度弹窗复用）
     cancel: "取消",
@@ -1198,6 +1264,8 @@ export default function App() {
   const [rewardMinerFilter, setRewardMinerFilter] = useState<string | null>(null);
 
   // === 后端真实数据（PRD §17）===
+  // 主现货 USDT 余额（专给买矿机/49 席弹窗用，跟 user.balanceUSDT 是两个账本）
+  const [spotUsdt, setSpotUsdt] = useState<ApiSpotUsdt | null>(null);
   const [myMiners, setMyMiners] = useState<MyMiner[]>([]);
   const [rewards, setRewards] = useState<RewardEntry[]>([]);
   const [xgtSummary, setXgtSummary] = useState<{
@@ -1252,7 +1320,7 @@ export default function App() {
   const [founderFundPassword, setFounderFundPassword] = useState('');
   const [founderAcknowledged, setFounderAcknowledged] = useState(false);
   const [founderSubmitting, setFounderSubmitting] = useState(false);
-  const [founderToast, setFounderToast] = useState<string>('');
+  const [founderToast, setFounderToast] = useState<RichToast | null>(null);
 
   // L1-L4 真实配置（GET /api/nodes/levels），后端 t_node_level 启用行
   const [nodeLevels, setNodeLevels] = useState<NodeCatalogItem[]>(NODES);
@@ -1262,7 +1330,7 @@ export default function App() {
   const [nodeBuyTarget, setNodeBuyTarget] = useState<NodeCatalogItem | null>(null);
   const [nodeBuyFundPassword, setNodeBuyFundPassword] = useState('');
   const [nodeBuySubmitting, setNodeBuySubmitting] = useState(false);
-  const [nodeBuyToast, setNodeBuyToast] = useState<string>('');
+  const [nodeBuyToast, setNodeBuyToast] = useState<RichToast | null>(null);
 
   const reloadFounder = React.useCallback(() => {
     setFounderLoading(true);
@@ -1500,6 +1568,14 @@ export default function App() {
       })
       .catch((e) => console.warn('[gold] fetchBinaryTeam failed', e));
 
+    // 主现货 USDT 余额（买矿机/49 席用，跟子钱包 balanceUSDT 不同账本）
+    fetchMySpotUsdt()
+      .then((resp) => {
+        if (cancelled) return;
+        setSpotUsdt(resp || null);
+      })
+      .catch((e) => console.warn('[gold] fetchMySpotUsdt failed', e));
+
     // 金矿子钱包余额（B 路线第一组）：用真实 USDT 子钱包余额 + 费率覆盖 mock balanceUSDT
     fetchMyGoldWallet()
       .then((resp) => {
@@ -1544,9 +1620,18 @@ export default function App() {
 
   useEffect(() => {
     if (!founderToast) return;
-    const id = window.setTimeout(() => setFounderToast(''), 2800);
+    // success 多停 1.5s 让用户看完静态分红预告，error 维持 2.8s
+    const ttl = founderToast.kind === 'success' ? 4500 : 2800;
+    const id = window.setTimeout(() => setFounderToast(null), ttl);
     return () => window.clearTimeout(id);
   }, [founderToast]);
+
+  useEffect(() => {
+    if (!nodeBuyToast) return;
+    const ttl = nodeBuyToast.kind === 'success' ? 4500 : 2800;
+    const id = window.setTimeout(() => setNodeBuyToast(null), ttl);
+    return () => window.clearTimeout(id);
+  }, [nodeBuyToast]);
 
   useEffect(() => {
     if (!ecoToast) return;
@@ -3504,11 +3589,12 @@ export default function App() {
     if (nodeBuySubmitting) return;
     if (!nodeBuyTarget) return;
     if (!nodeBuyFundPassword.trim()) {
-      setNodeBuyToast(t('nodeBuyFundPwdRequired'));
+      setNodeBuyToast({ kind: 'error', text: t('nodeBuyFundPwdRequired') });
       return;
     }
-    if (user && user.balanceUSDT < nodeBuyTarget.price) {
-      setNodeBuyToast(t('nodeBuyInsufficient'));
+    // 校验主现货而非子钱包：后端 NodePurchaseServiceImpl 扣的是 t_app_asset PLATFORM_ASSETS
+    if (spotUsdt && spotUsdt.availableAmount < nodeBuyTarget.price) {
+      setNodeBuyToast({ kind: 'error', text: t('nodeBuyInsufficient') });
       return;
     }
     setNodeBuySubmitting(true);
@@ -3521,26 +3607,39 @@ export default function App() {
       .then((res: ApiNodeBuyResult) => {
         setNodeBuyDialogOpen(false);
         setNodeBuyFundPassword('');
-        setNodeBuyToast(
-          res.idempotent
+        setNodeBuyToast({
+          kind: 'success',
+          text: res.idempotent
             ? t('nodeBuyIdempotentToast', { level: res.levelCode })
-            : t('nodeBuySuccessToast', { level: res.levelCode })
-        );
-        // 刷新我的矿机 / 钱包余额
+            : t('nodeBuySuccessRich', { level: res.levelCode }),
+        });
+        // 刷新我的矿机 + 主现货余额（扣款源）+ 金矿子钱包（首页 Total Yield 卡片用）
         fetchMyMiners().then((list) => setMyMiners((list || []).map(adaptMyMiner))).catch(() => {});
+        fetchMySpotUsdt().then((s) => setSpotUsdt(s || null)).catch(() => {});
         fetchMyGoldWallet().then((w) => {
           if (w) {
             setUser((prev) => (prev ? { ...prev, balanceUSDT: Number(w.usdtBalance ?? 0) } : prev));
           }
         }).catch(() => {});
       })
-      .catch((e: any) => setNodeBuyToast(e?.message || t('nodeBuyFailToast')))
+      .catch((e: any) => {
+        // raw msg → 友好 i18n key → t() 翻译。raw 仅 dev 时打 console，用户看不到。
+        const key = mapBackendErrorKey(e?.message, 'nodeBuyFailToast');
+        if (e?.message) console.warn('[gold] nodeBuy raw error:', e.message);
+        setNodeBuyToast({ kind: 'error', text: t(key) });
+      })
       .finally(() => setNodeBuySubmitting(false));
   };
 
   const handleFounderPurchase = () => {
     if (founderSubmitting) return;
     if (!founderAcknowledged || !founderFundPassword.trim()) return;
+    // 校验主现货而非子钱包：后端 FounderPurchaseServiceImpl 扣的是 t_app_asset PLATFORM_ASSETS
+    const seatPrice = Number(founderInfo?.priceUsdt || 200000);
+    if (spotUsdt && spotUsdt.availableAmount < seatPrice) {
+      setFounderToast({ kind: 'error', text: t('nodeBuyInsufficient') });
+      return;
+    }
     setFounderSubmitting(true);
     const idempotentKey = `FOUNDER-${user?.uid || 'anon'}-${Date.now()}`;
     submitFounderPurchase({
@@ -3551,10 +3650,22 @@ export default function App() {
         setFounderDialogOpen(false);
         setFounderFundPassword('');
         setFounderAcknowledged(false);
-        setFounderToast(t('founderApplySuccessToast', { seatNo: res.seatNo }));
+        setFounderToast({
+          kind: 'success',
+          text: t('founderApplySuccessRich', { seatNo: res.seatNo }),
+        });
         reloadFounder();
+        // 49 席同样从主现货扣款，刷新两个余额
+        fetchMySpotUsdt().then((s) => setSpotUsdt(s || null)).catch(() => {});
+        fetchMyGoldWallet().then((w) => {
+          if (w) setUser((prev) => (prev ? { ...prev, balanceUSDT: Number(w.usdtBalance ?? 0) } : prev));
+        }).catch(() => {});
       })
-      .catch((e: any) => setFounderToast(e?.message || t('founderApplyFailToast')))
+      .catch((e: any) => {
+        const key = mapBackendErrorKey(e?.message, 'founderApplyFailToast');
+        if (e?.message) console.warn('[gold] founder raw error:', e.message);
+        setFounderToast({ kind: 'error', text: t(key) });
+      })
       .finally(() => setFounderSubmitting(false));
   };
 
@@ -3648,11 +3759,23 @@ export default function App() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-[12px] text-slate-500 mb-4">
+            <p className="text-[12px] text-slate-500 mb-2">
               {t('founderApplyDialogSubtitle', {
                 price: Number(founderInfo?.priceUsdt || 200000).toLocaleString(),
               })}
             </p>
+            {(() => {
+              const seatPrice = Number(founderInfo?.priceUsdt || 200000);
+              const insufficient = !!(spotUsdt && spotUsdt.availableAmount < seatPrice);
+              return (
+                <p className="text-[11px] text-slate-500 mb-4">
+                  {lang === 'en' ? 'Spot balance' : '现货余额'}：
+                  <span className={`font-bold ml-1 ${insufficient ? 'text-rose-600' : 'text-slate-900'}`}>
+                    {(spotUsdt?.availableAmount ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
+                  </span>
+                </p>
+              );
+            })()}
             <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
               {t('founderFundPasswordLabel')}
             </label>
@@ -3698,8 +3821,20 @@ export default function App() {
 
       {/* Founder toast */}
       {founderToast && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-2xl">
-          {founderToast}
+        <div
+          className={`fixed top-24 left-1/2 -translate-x-1/2 z-[90] flex items-start gap-2.5 max-w-[88vw] w-auto px-5 py-3.5 rounded-2xl text-[12.5px] font-semibold shadow-2xl cursor-pointer ${
+            founderToast.kind === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-rose-600 text-white'
+          }`}
+          onClick={() => setFounderToast(null)}
+        >
+          {founderToast.kind === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 shrink-0 mt-[1px]" />
+          ) : (
+            <XCircle className="w-5 h-5 shrink-0 mt-[1px]" />
+          )}
+          <span className="leading-snug whitespace-pre-line">{founderToast.text}</span>
         </div>
       )}
 
@@ -3749,8 +3884,8 @@ export default function App() {
 
             <p className="text-[11px] text-slate-500 mb-2">
               {lang === 'en' ? 'Spot balance' : '现货余额'}：
-              <span className={`font-bold ml-1 ${user && user.balanceUSDT < nodeBuyTarget.price ? 'text-rose-600' : 'text-slate-900'}`}>
-                {(user?.balanceUSDT ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
+              <span className={`font-bold ml-1 ${spotUsdt && spotUsdt.availableAmount < nodeBuyTarget.price ? 'text-rose-600' : 'text-slate-900'}`}>
+                {(spotUsdt?.availableAmount ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
               </span>
             </p>
 
@@ -3790,10 +3925,19 @@ export default function App() {
       {/* L1-L4 toast */}
       {nodeBuyToast && (
         <div
-          className="fixed top-24 left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-xl bg-slate-900 text-white text-[12px] font-semibold shadow-2xl cursor-pointer"
-          onClick={() => setNodeBuyToast('')}
+          className={`fixed top-24 left-1/2 -translate-x-1/2 z-[90] flex items-start gap-2.5 max-w-[88vw] w-auto px-5 py-3.5 rounded-2xl text-[12.5px] font-semibold shadow-2xl cursor-pointer ${
+            nodeBuyToast.kind === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-rose-600 text-white'
+          }`}
+          onClick={() => setNodeBuyToast(null)}
         >
-          {nodeBuyToast}
+          {nodeBuyToast.kind === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 shrink-0 mt-[1px]" />
+          ) : (
+            <XCircle className="w-5 h-5 shrink-0 mt-[1px]" />
+          )}
+          <span className="leading-snug whitespace-pre-line">{nodeBuyToast.text}</span>
         </div>
       )}
 
