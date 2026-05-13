@@ -5,6 +5,18 @@
  */
 import { apiGet, apiPost } from './api';
 
+// === gold profile (GET /api/gold/profile) ===
+export interface ApiGoldProfile {
+  userId: number;
+  loginName?: string | null;
+  email?: string | null;
+  activeCode?: string | null;
+}
+
+export function fetchMyGoldProfile(): Promise<ApiGoldProfile> {
+  return apiGet<ApiGoldProfile>('/api/gold/profile');
+}
+
 // === my miners (GET /api/nodes/my) ===
 export interface ApiMyMiner {
   id: number;

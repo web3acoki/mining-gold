@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
+  fetchMyGoldProfile,
   fetchMyMiners,
   fetchRewardsDaily,
   fetchMyXgtLocks,
@@ -1509,7 +1510,7 @@ export default function App() {
     return text;
   };
 
-  // Simulate CEX injection
+  // Bootstrap CEX injection, then refresh account identity from the backend.
   useEffect(() => {
     // BUG FIX 2026-05-12：之前自己写 localStorage.setItem('xagent_token', ...)
     // key 和 utils/auth.ts 里 getStoredToken 用的 `${VITE_APP_ENV}_TOKEN` 不一致，
@@ -1532,6 +1533,26 @@ export default function App() {
       riskFrozen: false,
     };
     setUser(mockUser);
+
+    let cancelled = false;
+    fetchMyGoldProfile()
+      .then((profile) => {
+        if (cancelled || !profile) return;
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                uid: profile.userId ? String(profile.userId) : prev.uid,
+                refCode: profile.activeCode || prev.refCode,
+              }
+            : prev,
+        );
+      })
+      .catch((e) => console.warn('[gold] fetchMyGoldProfile failed', e));
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 拉真实金矿数据（矿机 / 奖励 / XGT 锁仓）
