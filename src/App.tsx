@@ -225,6 +225,7 @@ const translations: Record<string, any> = {
     monthSummaryUsdt: "Month USDT (credited)",
     monthSummaryEco: "Month eco credit (+)",
     monthSummaryXgt: "Month $XGT released",
+    splitReferral100: "100% USDT",
     split7030: "70% USDT · 30% ecosystem credit",
     split5050: "50% USDT · 50% $XGT (nominal)",
     healthCountedLabel: "Healthy-out counted gross",
@@ -409,7 +410,7 @@ const translations: Record<string, any> = {
 
     // Ecosystem credit (C-2)
     ecoEntryTitle: "Ecosystem Credit",
-    ecoEntrySubtitle: "Locked from 30% of referral / team rewards",
+    ecoEntrySubtitle: "Locked from 30% of team rewards",
     ecoCenterTitle: "Credit Center",
     ecoCenterSubtitle: "Unlock to gold sub-wallet (USDT 1:1)",
     ecoBalanceLocked: "Total Locked",
@@ -417,7 +418,7 @@ const translations: Record<string, any> = {
     ecoInProgressNote: "{n} credit pending in active unlock requests",
     ecoUnlockCta: "Apply to Unlock",
     ecoNoEntriesTitle: "No unlock history yet",
-    ecoNoEntriesDesc: "Earn referral / team rewards first — 30% lands here as credit.",
+    ecoNoEntriesDesc: "Earn team rewards first — 30% lands here as credit.",
     ecoTradeVolume: "Trade volume progress",
     ecoXgtLockReleaseAt: "Release at",
     ecoXgtLockStatus: "XGT lock status",
@@ -563,6 +564,7 @@ const translations: Record<string, any> = {
     monthSummaryUsdt: "本月 USDT（已入账）",
     monthSummaryEco: "本月生态积分（入账）",
     monthSummaryXgt: "本月 $XGT 释放",
+    splitReferral100: "100% USDT",
     split7030: "70% USDT · 30% ecosystem_credit",
     split5050: "50% USDT · 50% $XGT（名义）",
     healthCountedLabel: "健康出局计入（毛额）",
@@ -747,7 +749,7 @@ const translations: Record<string, any> = {
 
     // 生态额度（C-2）
     ecoEntryTitle: "生态额度",
-    ecoEntrySubtitle: "来源：直推 / 团队奖的 30%",
+    ecoEntrySubtitle: "来源：团队奖的 30%",
     ecoCenterTitle: "生态额度中心",
     ecoCenterSubtitle: "解锁后按 1:1 入金矿子钱包 USDT",
     ecoBalanceLocked: "累计锁定",
@@ -755,7 +757,7 @@ const translations: Record<string, any> = {
     ecoInProgressNote: "已有 {n} credit 在解锁中（不可重复申请）",
     ecoUnlockCta: "申请解锁",
     ecoNoEntriesTitle: "暂无解锁记录",
-    ecoNoEntriesDesc: "先通过直推 / 团队奖积累额度，30% 会落到生态额度。",
+    ecoNoEntriesDesc: "先通过团队奖积累额度，30% 会落到生态额度。",
     ecoTradeVolume: "交易量进度",
     ecoXgtLockReleaseAt: "释放时间",
     ecoXgtLockStatus: "XGT 锁仓状态",
@@ -2652,7 +2654,13 @@ export default function App() {
                       })()}
                     </p>
                   ) : null}
-                  {(r.type === 'referral' || r.type === 'team') && (
+                  {r.type === 'referral' && (
+                    <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+                      {t('splitReferral100')}
+                      <span className="text-slate-400"> · Gross {r.gross.toLocaleString(undefined, { maximumFractionDigits: 2 })} U</span>
+                    </p>
+                  )}
+                  {r.type === 'team' && (
                     <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
                       {t('split7030')}
                       <span className="text-slate-400"> · Gross {r.gross.toLocaleString(undefined, { maximumFractionDigits: 2 })} U</span>
