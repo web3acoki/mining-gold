@@ -253,6 +253,22 @@ const translations: Record<string, any> = {
     eligibilityExplainShort: "No active miner — no static, referral, team or agency fee dividends.",
     activeMinerEligibilityExplain: "Active miner detected — static, referral and team rewards count until the 300% healthy-out cap.",
 
+    yieldChannelsTag: "Yield Channels",
+    yieldChannelsTitle: "How Gold Mine Rewards Are Generated",
+    yieldChannelsDesc: "All reward channels follow active miner eligibility, account status, and backend settlement records.",
+    yieldChannelStaticTitle: "Static compute dividend",
+    yieldChannelStaticDesc: "Active AI miners generate daily fixed compute rewards until the 300% healthy-out cap.",
+    yieldChannelReferralTitle: "Direct referral reward",
+    yieldChannelReferralDesc: "Invite users who activate miners to unlock direct reward eligibility tied to your active miner.",
+    yieldChannelTeamTitle: "Team agency reward",
+    yieldChannelTeamDesc: "Binary team performance can create matchup rewards within the configured node cap.",
+    yieldChannelAgencyTitle: "V4/V5 fee share",
+    yieldChannelAgencyDesc: "Qualified agencies can participate in platform trading-fee dividends by level rules.",
+    yieldChannelFounderTitle: "Founding partner share",
+    yieldChannelFounderDesc: "Founding 49ers seats can share designated CEX fee pools and partner benefits.",
+    yieldChannelUnlockTitle: "$XGT / credit release",
+    yieldChannelUnlockDesc: "Locked $XGT and ecosystem credit release through the configured unlock process.",
+
     // Home Project Introduction
     homeIntroTag: "Project Introduction",
     homeIntroTitle: "Wroko Tranga 2.0 Gold Compute Ecosystem",
@@ -591,6 +607,22 @@ const translations: Record<string, any> = {
     healthyOutExplainShort: "每台矿机独立 300% 额度；静态、直推、团队奖励毛额计入。",
     eligibilityExplainShort: "无 active 矿机则无静态分红、直推奖、团队代理奖与代理全网手续费分红。",
     activeMinerEligibilityExplain: "已检测到 active 矿机，静态分红、直推奖与团队奖励会计入 300% 健康出局封顶。",
+
+    yieldChannelsTag: "收益渠道",
+    yieldChannelsTitle: "金矿收益从哪里来",
+    yieldChannelsDesc: "所有收益以 active 矿机资格、账户状态和后台结算流水为准。",
+    yieldChannelStaticTitle: "静态算力分红",
+    yieldChannelStaticDesc: "持有 active AI 矿机后，按矿机等级产生每日固定收益，直到触达 300% 健康出局封顶。",
+    yieldChannelReferralTitle: "直推奖励",
+    yieldChannelReferralDesc: "邀请用户并完成矿机激活后，按规则获得直推奖励资格，收益绑定当前有效权益矿机。",
+    yieldChannelTeamTitle: "团队代理奖",
+    yieldChannelTeamDesc: "左右区团队业绩产生对碰奖励，按节点等级和封顶规则结算。",
+    yieldChannelAgencyTitle: "V4/V5 手续费分红",
+    yieldChannelAgencyDesc: "满足代理等级条件后，可按平台规则参与交易手续费分红。",
+    yieldChannelFounderTitle: "创世合伙人分红",
+    yieldChannelFounderDesc: "Founding 49ers 席位按规则参与指定 CEX 手续费池和合伙人权益。",
+    yieldChannelUnlockTitle: "$XGT / 生态额度释放",
+    yieldChannelUnlockDesc: "静态或动态收益中的锁仓 $XGT、生态额度，按解锁规则释放或转出。",
 
     // Home Project Introduction
     homeIntroTag: "项目介绍",
@@ -1810,6 +1842,48 @@ export default function App() {
                />
             </div>
           </Card>
+        </div>
+      </Card>
+
+      {/* Revenue Channels */}
+      <Card className="p-6 bg-white border-slate-100 shadow-xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] text-brand-primary uppercase font-bold tracking-[0.2em]">{t('yieldChannelsTag')}</p>
+            <h3 className="mt-2 text-2xl font-serif font-bold text-slate-900 tracking-tight leading-tight">{t('yieldChannelsTitle')}</h3>
+            <p className="mt-2 text-[12px] text-slate-500 leading-relaxed font-medium">{t('yieldChannelsDesc')}</p>
+          </div>
+          <div className="shrink-0 w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+            <TrendingUp size={19} className="text-brand-secondary" />
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3">
+          {[
+            { icon: Cpu, title: t('yieldChannelStaticTitle'), desc: t('yieldChannelStaticDesc') },
+            { icon: Users, title: t('yieldChannelReferralTitle'), desc: t('yieldChannelReferralDesc') },
+            { icon: Zap, title: t('yieldChannelTeamTitle'), desc: t('yieldChannelTeamDesc') },
+            { icon: Receipt, title: t('yieldChannelAgencyTitle'), desc: t('yieldChannelAgencyDesc') },
+            { icon: Trophy, title: t('yieldChannelFounderTitle'), desc: t('yieldChannelFounderDesc') },
+            { icon: Lock, title: t('yieldChannelUnlockTitle'), desc: t('yieldChannelUnlockDesc') },
+          ].map(({ icon: Icon, title, desc }, i) => (
+            <div
+              key={title}
+              className="flex items-start gap-3 rounded-3xl border border-slate-100 bg-gradient-to-r from-slate-50 to-white p-4"
+            >
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${
+                i % 2 === 0
+                  ? 'bg-amber-50 border-amber-100 text-brand-primary'
+                  : 'bg-emerald-50 border-emerald-100 text-brand-secondary'
+              }`}>
+                <Icon size={17} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-bold text-slate-900 tracking-tight">{title}</p>
+                <p className="mt-1 text-[11px] text-slate-500 leading-relaxed font-medium">{desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
 
